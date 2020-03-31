@@ -1,0 +1,20 @@
+scrape for ourselfes?
+
+- multiplatform information
+- ratings on different websites --> Bechir meint ja, 
+- understanding how EU sales is computed 
+
+Text mining approach
+
+- identify Franchises
+- identify series
+- identify same game with different title (e.g. .hack//G.U. Vol.2//Reminisce AND .hack//G.U. Vol.2//Reminisce (jp sales))
+
+Compare models
+ 
+- tree models
+- classic regressions model
+--> benchmarking
+
+markdown and shiny
+- take a look 

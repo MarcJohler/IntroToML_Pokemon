@@ -153,8 +153,8 @@ for (i in 1:length(ability_list_sample)){
   pokemon_sample$unique_ability[i] <- sample(ability_list_sample[[i]],1)
 }
 
-ability_vector_sample <- unlist(ability_list_sample)
-all_abilities <- unique(ability_vector_sample)
+ability_vector <- unlist(ability_list)
+all_abilities <- unique(ability_vector)
 pokemon_sample$unique_ability <- pokemon_sample$unique_ability %>% factor(levels=all_abilities)
 
 # drop variables which are not for unique pokemon

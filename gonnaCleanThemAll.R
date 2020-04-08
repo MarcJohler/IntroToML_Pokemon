@@ -39,6 +39,8 @@ names(pokemon) <- c("abilities","attack","base_egg_steps","base_friendship","tot
 #####
 # 4: create new variables 
 
+pokemon$catch_rate <- as.character(pokemon$catch_rate) %>% as.numeric()
+
 # abilities
 # has multiple possible values --> split it into different columns
 abilities <- as.character(pokemon$abilities)

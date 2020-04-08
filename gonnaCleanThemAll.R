@@ -118,5 +118,44 @@ pokemon$is_legendary <- pokemon$is_legendary %>% as.logical() %>% as.factor()
 
 pokemon <- pokemon %>% select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","experience_growth","has_gender","prob_male","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
 
+######
+# 6: use pokemon data to simulate a sample 
 
+pokemon_sample_indx <- sample.int(nrow(pokemon),size=10000,replace=TRUE)
+pokemon_sample <- pokemon[pokemon_sample_indx,]
+for (i in 1:nrow(pokemon_sample)){
+  pokemon_sample$prob_male[i] <- rbinom(1,1,pokemon_sample$prob_male[i])
+}
+pokemon$gender <- NA
 
+for (i in 1:nrow(pokemon_sample)){
+  if (pokemon_sample$has_gender[i]=="False"){
+    pokemon_sample$gender[i] <- "none"
+  }
+  else {
+    if (pokemon_sample$prob_male[i]==1){
+      pokemon_sample$gender[i] <-"male"
+    }
+    else {
+      pokemon_sample$gender[i] <- "female"
+    }
+  }
+}
+pokemon_sample$gender <- pokemon_sample$gender %>% as.factor()
+
+pokemon_sample$unique_ability <- NA
+
+abilities_sample <- as.character(pokemon_sample$abilities)
+ability_list_sample <- strsplit(abilities_sample,",") 
+
+for (i in 1:length(ability_list_sample)){
+  ability_list_sample[[i]] <- str_remove_all(ability_list_sample[[i]],fixed("['")) %>% str_remove_all(fixed("']")) %>% str_remove_all(fixed(" '")) %>% str_remove_all(fixed("'"))
+  pokemon_sample$unique_ability[i] <- sample(ability_list_sample[[i]],1)
+}
+
+ability_vector_sample <- unlist(ability_list_sample)
+all_abilities <- unique(ability_vector_sample)
+pokemon_sample$unique_ability <- pokemon_sample$unique_ability %>% factor(levels=all_abilities)
+
+# drop variables which are not for unique pokemon
+pokemon_sample <- pokemon_sample %>% select(-c("abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_gender","prob_male"))

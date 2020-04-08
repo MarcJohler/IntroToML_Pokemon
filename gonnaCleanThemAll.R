@@ -26,20 +26,20 @@ pokemon_small %>% filter(name_different==TRUE)
 # 2: select the required columns for both data sets 
 # basic principle: if available in both data sets use data of pokemon_large_reduced since it's newer. 
 # Exception: percentage_male - values are wrong in pokemon_large_reduced
-pokemon_large_reduced <- pokemon_large_reduced %>% select(abilities,attack,base_egg_steps,base_happiness,base_total,capture_rate,classfication,defense,experience_growth,height_m,hp,name,pokedex_number,sp_attack,sp_defense,speed,type1,type2,weight_kg,generation,is_legendary)
-pokemon_small <- pokemon_small %>% select(Color,hasGender,Pr_Male,Egg_Group_1,Egg_Group_2,hasMegaEvolution,Body_Style)
+pokemon_large_reduced <- pokemon_large_reduced %>% select(abilities,attack,base_egg_steps,base_happiness,base_total,capture_rate,classfication,defense,experience_growth,hp,name,pokedex_number,sp_attack,sp_defense,speed,type1,type2,generation,is_legendary)
+pokemon_small <- pokemon_small %>% select(Color,hasGender,Pr_Male,Egg_Group_1,Egg_Group_2,hasMegaEvolution,Body_Style,Height_m,Weight_kg)
 
 pokemon <- cbind(pokemon_large_reduced,pokemon_small)
 
 ######
 # 3: standardise variable naming style
-names(pokemon) <- c("abilities","attack","base_egg_steps","base_friendship","total","catch_rate","category","defense","experience_growth","height_m","hp","name","pokedex_number","sp_attack","sp_defense","speed","type_1","type_2","weight_kg","generation","is_legendary","color","has_gender","prob_male","egg_group_1","egg_group_2","has_mega_evolution","body_style")
+names(pokemon) <- c("abilities","attack","base_egg_steps","base_friendship","total","catch_rate","category","defense","experience_growth","hp","name","pokedex_number","sp_attack","sp_defense","speed","type_1","type_2","generation","is_legendary","color","has_gender","prob_male","egg_group_1","egg_group_2","has_mega_evolution","body_style","height_m","weight_kg")
 
 
 #####
 # 4: create new variables 
 
-pokemon$catch_rate <- as.character(pokemon$catch_rate) %>% as.numeric()
+pokemon$catch_rate <- as.character(pokemon$catch_rate) %>% as.integer()
 
 # abilities
 # has multiple possible values --> split it into different columns

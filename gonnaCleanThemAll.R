@@ -121,16 +121,16 @@ pokemon <- pokemon %>% select("pokedex_number","name","generation","category","e
 ######
 # 6: use pokemon data to simulate a sample 
 
-pokemon_sample_indx <- sample.int(nrow(pokemon),size=10000,replace=TRUE)
+pokemon_sample_indx <- sample.int(nrow(pokemon),size=100000,replace=TRUE)
 pokemon_sample <- pokemon[pokemon_sample_indx,]
 for (i in 1:nrow(pokemon_sample)){
   pokemon_sample$prob_male[i] <- rbinom(1,1,pokemon_sample$prob_male[i])
 }
-pokemon$gender <- NA
+pokemon_sample$gender <- NA
 
 for (i in 1:nrow(pokemon_sample)){
   if (pokemon_sample$has_gender[i]=="False"){
-    pokemon_sample$gender[i] <- "none"
+    pokemon_sample$gender[i] <- "genderless"
   }
   else {
     if (pokemon_sample$prob_male[i]==1){
@@ -143,19 +143,76 @@ for (i in 1:nrow(pokemon_sample)){
 }
 pokemon_sample$gender <- pokemon_sample$gender %>% as.factor()
 
-pokemon_sample$unique_ability <- NA
+pokemon_sample$individual_ability <- NA
 
 abilities_sample <- as.character(pokemon_sample$abilities)
 ability_list_sample <- strsplit(abilities_sample,",") 
 
 for (i in 1:length(ability_list_sample)){
   ability_list_sample[[i]] <- str_remove_all(ability_list_sample[[i]],fixed("['")) %>% str_remove_all(fixed("']")) %>% str_remove_all(fixed(" '")) %>% str_remove_all(fixed("'"))
-  pokemon_sample$unique_ability[i] <- sample(ability_list_sample[[i]],1)
+  pokemon_sample$individual_ability[i] <- sample(ability_list_sample[[i]],1)
 }
 
 ability_vector <- unlist(ability_list)
 all_abilities <- unique(ability_vector)
-pokemon_sample$unique_ability <- pokemon_sample$unique_ability %>% factor(levels=all_abilities)
+pokemon_sample$individual_ability <- pokemon_sample$individual_ability %>% factor(levels=all_abilities)
+
+# add random nature effect (increases value of one stat +10% and decreases one stat -10%)
+for (i in 1:nrow(pokemon_sample)){
+  nature <- sample(c("attack","defense","sp_attack","sp_defense","hp","speed"),size=2,replace=TRUE)
+  if (nature[1]!=nature[2]){
+    if (nature[1]=="hp"){
+      pokemon_sample[i,31] <- floor(pokemon_sample[i,31]*1.1) 
+    }
+    else if (nature[1]=="attack"){
+      pokemon_sample[i,32] <- floor(pokemon_sample[i,32]*1.1)
+    }
+    else if (nature[1]=="defense"){
+      pokemon_sample[i,33] <- floor(pokemon_sample[i,33]*1.1)
+    }
+    else if (nature[1]=="sp_attack"){
+      pokemon_sample[i,34] <- floor(pokemon_sample[i,34]*1.1)
+    }
+    else if (nature[1]=="sp_defense"){
+      pokemon_sample[i,35] <- floor(pokemon_sample[i,35]*1.1)
+    }
+    else if (nature[1]=="speed"){
+      pokemon_sample[i,36] <- floor(pokemon_sample[i,36]*1.1)
+    }
+    
+    if (nature[2]=="hp"){
+      pokemon_sample[i,31] <- floor(pokemon_sample[i,31]*0.9)
+    }
+    else if (nature[2]=="attack"){
+      pokemon_sample[i,32] <- floor(pokemon_sample[i,32]*0.9)
+    }
+    else if (nature[2]=="defense"){
+      pokemon_sample[i,33] <- floor(pokemon_sample[i,33]*0.9)
+    }
+    else if (nature[2]=="sp_attack"){
+      pokemon_sample[i,34] <- floor(pokemon_sample[i,34]*0.9)
+    }
+    else if (nature[2]=="sp_defense"){
+      pokemon_sample[i,35] <- floor(pokemon_sample[i,35]*0.9)
+    }
+    else if (nature[2]=="speed"){
+      pokemon_sample[i,36] <- floor(pokemon_sample[i,36]*0.9)
+    }
+    
+    pokemon_sample[i,37] <- sum(pokemon_sample[i,31:36])
+  }
+}
 
 # drop variables which are not for unique pokemon
 pokemon_sample <- pokemon_sample %>% select(-c("abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_gender","prob_male"))
+
+# split into train and test
+training_indx <- sample.int(nrow(pokemon_sample),size=round(0.8*nrow(pokemon_sample)))
+test_indx <- setdiff(1:nrow(pokemon_sample),training_indx)
+
+training_data <- pokemon_sample[training_indx,]
+test_data <- pokemon_sample[test_indx,]
+
+path <- getwd()
+write.csv(training_data,paste(path,"pokemon_training_data.csv",sep="/"),row.names=TRUE)
+write.csv(test_data,paste(path,"pokemon_test_data.csv",sep="/"),row.names=TRUE)

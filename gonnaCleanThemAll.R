@@ -26,8 +26,8 @@ pokemon_small %>% filter(name_different==TRUE)
 # 2: select the required columns for both data sets 
 # basic principle: if available in both data sets use data of pokemon_large_reduced since it's newer. 
 # Exception: percentage_male - values are wrong in pokemon_large_reduced
-pokemon_large_reduced <- pokemon_large_reduced %>% select(abilities,attack,base_egg_steps,base_happiness,base_total,capture_rate,classfication,defense,experience_growth,hp,name,pokedex_number,sp_attack,sp_defense,speed,type1,type2,generation,is_legendary)
-pokemon_small <- pokemon_small %>% select(Color,hasGender,Pr_Male,Egg_Group_1,Egg_Group_2,hasMegaEvolution,Body_Style,Height_m,Weight_kg)
+pokemon_large_reduced <- pokemon_large_reduced %>% dplyr::select(abilities,attack,base_egg_steps,base_happiness,base_total,capture_rate,classfication,defense,experience_growth,hp,name,pokedex_number,sp_attack,sp_defense,speed,type1,type2,generation,is_legendary)
+pokemon_small <- pokemon_small %>% dplyr::select(Color,hasGender,Pr_Male,Egg_Group_1,Egg_Group_2,hasMegaEvolution,Body_Style,Height_m,Weight_kg)
 
 pokemon <- cbind(pokemon_large_reduced,pokemon_small)
 
@@ -116,7 +116,10 @@ pokemon$is_legendary <- pokemon$is_legendary %>% as.logical() %>% as.factor()
 ######
 # 5: re-order variables for easier usage
 
-pokemon <- pokemon %>% select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","experience_growth","has_gender","prob_male","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
+pokemon <- pokemon %>% dplyr::select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","experience_growth","has_gender","prob_male","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
+path <- getwd()
+write.csv(pokemon,paste(path,"pokemon_original.csv",sep="/"),row.names=TRUE)
+
 
 ######
 # 6: use pokemon data to simulate a sample 
@@ -204,7 +207,7 @@ for (i in 1:nrow(pokemon_sample)){
 }
 
 # drop variables which are not for unique pokemon
-pokemon_sample <- pokemon_sample %>% select(-c("abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_gender","prob_male"))
+pokemon_sample <- pokemon_sample %>% dplyr::select(-c("abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_gender","prob_male"))
 
 # split into train and test
 training_indx <- sample.int(nrow(pokemon_sample),size=round(0.8*nrow(pokemon_sample)))

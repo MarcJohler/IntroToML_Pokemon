@@ -191,6 +191,6 @@ tuning_results <- tuning_results[order(tuning_results$mse),]
 View(tuning_results)
 # k = 140-160, distance = 1, mse: 2548.170
 
-
+# visualisation
 
 

@@ -113,9 +113,8 @@ pokemon$has_egg_group_2 <- (!empty_egg_group_2) %>% as.factor()
 #is_legendary
 pokemon$is_legendary <- pokemon$is_legendary %>% as.logical() %>% as.factor()
 
-######
-# 5: re-order variables for easier usage
 
+#create ordinal variable "base_friendship_ordinal" for possible classification task
 pokemon$base_friendship_small <- pokemon$base_friendship <= 35
 pokemon$base_friendship_medium <- (pokemon$base_friendship <= 90) & (pokemon$base_friendship >= 70)
 pokemon$base_friendship_large <- pokemon$base_friendship >= 100 
@@ -125,8 +124,39 @@ pokemon[pokemon$base_friendship_small,]$base_friendship_ordinal <- "small"
 pokemon[pokemon$base_friendship_medium,]$base_friendship_ordinal <- "medium"
 pokemon[pokemon$base_friendship_large,]$base_friendship_ordinal <- "large"
 
+#gender 
+# assumption --> we will assign individual genders but ensure that for pokemons with a specific probability p with 0 < p < 1 for a specific gender, the overall frequency for all the pokemons with the same frequency will equal the actual percentage
+pokemon$gender <- "editme"
 
-pokemon <- pokemon %>% dplyr::select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","base_friendship_ordinal","experience_growth","has_gender","prob_male","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
+pokemon[!(as.logical(pokemon$has_gender)),]$gender <- "none"
+
+is_male <- pokemon$prob_male == 1
+pokemon[is_male,]$gender <- "male"
+
+is_female <- (pokemon$prob_male == 0) & (as.logical(pokemon$has_gender))
+pokemon[is_female,]$gender <- "female"
+
+possible_prob <- c(0.125,0.25,0.5,0.75,0.875)
+for (i in possible_prob){
+  length <- (pokemon$prob_male == i) %>% sum()
+  male_individuals <- length * i
+  female_individuals <- length * (1-i)
+  if (male_individuals%%1 == 0.5){
+    randomizer <- sample(c(-0.1,0.1),1)
+    male_individuals + randomizer
+    female_individuals - randomizer
+  }
+  male_individuals <- round(male_individuals)
+  female_individuals <- round(female_individuals)
+  gender_vector <- c(rep("male",male_individuals),rep("female",female_individuals))
+  gender_vector <- sample(gender_vector,length(gender_vector))
+  pokemon[pokemon$prob_male==i,]$gender <- gender_vector
+}
+
+
+######
+# 5: re-order variables for easier usage
+pokemon <- pokemon %>% dplyr::select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","base_friendship_ordinal","experience_growth","has_gender","prob_male","gender","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
 path <- getwd()
 write.csv(pokemon,paste(path,"pokemon_original.csv",sep="/"),row.names=TRUE)
 

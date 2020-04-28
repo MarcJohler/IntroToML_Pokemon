@@ -116,7 +116,17 @@ pokemon$is_legendary <- pokemon$is_legendary %>% as.logical() %>% as.factor()
 ######
 # 5: re-order variables for easier usage
 
-pokemon <- pokemon %>% dplyr::select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","experience_growth","has_gender","prob_male","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
+pokemon$base_friendship_small <- pokemon$base_friendship <= 35
+pokemon$base_friendship_medium <- (pokemon$base_friendship <= 90) & (pokemon$base_friendship >= 70)
+pokemon$base_friendship_large <- pokemon$base_friendship >= 100 
+pokemon$base_friendship_ordinal <- "editme"
+
+pokemon[pokemon$base_friendship_small,]$base_friendship_ordinal <- "small"
+pokemon[pokemon$base_friendship_medium,]$base_friendship_ordinal <- "medium"
+pokemon[pokemon$base_friendship_large,]$base_friendship_ordinal <- "large"
+
+
+pokemon <- pokemon %>% dplyr::select("pokedex_number","name","generation","category","egg_group_1","egg_group_2","has_egg_group_2","color","body_style","height_m","weight_kg","abilities","ability_1","ability_2","ability_3","ability_4","ability_5","ability_6","no_of_abilities","has_mega_evolution","catch_rate","base_egg_steps","base_friendship","base_friendship_ordinal","experience_growth","has_gender","prob_male","type_1","type_2","has_type_2","is_legendary","hp","attack","defense","sp_attack","sp_defense","speed","total")
 path <- getwd()
 write.csv(pokemon,paste(path,"pokemon_original.csv",sep="/"),row.names=TRUE)
 

@@ -37,30 +37,63 @@ combats$defenseVSattack <- combats$First_pokemon_defense - combats$Second_pokemo
 combats$sp_atkVSsp_def <- combats$First_pokemon_sp_atk - combats$Second_pokemon_sp_def
 combats$sp_defVSsp_atk <- combats$First_pokemon_sp_def - combats$Second_pokemon_sp_atk
 combats$speedVSspeed <- combats$First_pokemon_speed - combats$Second_pokemon_speed
-combats$HPVsHP <- combats$First_pokemon_HP - combats$Second_pokemon_HP
+combats$HPVSHP <- combats$First_pokemon_HP - combats$Second_pokemon_HP
 
 #add legendary status
 combats$First_pokemon_legendary<-sapply(combats$First_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
 combats$Second_pokemon_legendary<-sapply(combats$Second_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
 
-#add types
+#add types and mapping
 combats$First_pokemon_type1<-sapply(combats$First_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
+combats$First_pokemon_type1_indx <- sapply(combats$First_pokemon_type1, function(x) type_mapping$index[match(x, type_mapping$type)])
+
 combats$First_pokemon_type2<-sapply(combats$First_pokemon, function(x) pokemon$Type2[match(x, pokemon$X)])
 empty_type_2 <- combats$First_pokemon_type2 ==""
 combats$First_pokemon_type2 <- as.character(combats$First_pokemon_type2)
-combats[empty_type_2,]$First_pokemon_type2  <- "none"
+combats[empty_type_2,]$First_pokemon_type2  <- "None"
 combats$First_pokemon_type2 <- as.factor(combats$First_pokemon_type2)
-
+combats$First_pokemon_type2_indx <- sapply(combats$First_pokemon_type2, function(x) type_mapping$index[match(x, type_mapping$type)])
 
 combats$Second_pokemon_type1<-sapply(combats$Second_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
+combats$Second_pokemon_type1_indx <- sapply(combats$Second_pokemon_type1, function(x) type_mapping$index[match(x, type_mapping$type)])
+
 combats$Second_pokemon_type2<-sapply(combats$Second_pokemon, function(x) pokemon$Type2[match(x, pokemon$X)])
 empty_type_2 <- combats$Second_pokemon_type2 ==""
 combats$Second_pokemon_type2 <- as.character(combats$Second_pokemon_type2)
-combats[empty_type_2,]$Second_pokemon_type2  <- "none"
+combats[empty_type_2,]$Second_pokemon_type2  <- "None"
 combats$Second_pokemon_type2 <- as.factor(combats$Second_pokemon_type2)
+combats$Second_pokemon_type2_indx <- sapply(combats$Second_pokemon_type2, function(x) type_mapping$index[match(x, type_mapping$type)])
 
+#create double type and mapping
+combats$First_pokemon_double_type <- paste(combats$First_pokemon_type1,combats$First_pokemon_type2,sep="_")
+combats$First_pokemon_double_type_indx <- sapply(combats$First_pokemon_double_type, function(x) double_type_mapping$index[match(x, double_type_mapping$double_type)])
+combats$Second_pokemon_double_type <- paste(combats$Second_pokemon_type1,combats$Second_pokemon_type2,sep="_")
+combats$Second_pokemon_double_type_indx <- sapply(combats$Second_pokemon_double_type, function(x) double_type_mapping$index[match(x, double_type_mapping$double_type)])
 
+#lookup attack effectivity for each pokemon of each battle
+combats$First_pokemon_effectivity <- 99
+for (i in 1:nrow(combats)){
+  combats$First_pokemon_effectivity[i] <- double_type_table[combats$First_pokemon_type1_indx,combats$Second_pokemon_double_type_indx]
+  if(combats$First_pokemon_type2!="None"){
+    alt_effectivity <- double_type_table[combats$First_pokemon_type2_indx,combats$Second_pokemon_double_type_indx]
+    if (alt_effectivity > combats$First_pokemon_effectivity[i]){
+      combats$First_pokemon_effectivity[i] <- alt_effectivity
+    }
+  }
+  print(i)
+}
 
+combats$Second_pokemon_effectivity <- 99
+for (i in 1:nrow(combats)){
+  combats$Second_pokemon_effectivity[i] <- double_type_table[combats$Second_pokemon_type1_indx,combats$First_pokemon_double_type_indx]
+  if(combats$Second_pokemon_type2!="None"){
+    alt_effectivity <- double_type_table[combats$Second_pokemon_type2_indx,combats$First_pokemon_double_type_indx]
+    if (alt_effectivity > combats$Second_pokemon_effectivity[i]){
+      combats$Second_pokemon_effectivity[i] <- alt_effectivity
+    }
+  }
+  print(i)
+}
 
 #####################
 #try out

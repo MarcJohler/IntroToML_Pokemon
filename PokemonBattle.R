@@ -74,25 +74,23 @@ combats$Second_pokemon_double_type_indx <- sapply(combats$Second_pokemon_double_
 combats$First_pokemon_effectivity <- 99
 for (i in 1:nrow(combats)){
   combats$First_pokemon_effectivity[i] <- double_type_table[combats$First_pokemon_type1_indx[i],combats$Second_pokemon_double_type_indx[i]]
-  if(combats$First_pokemon_type2!="None"){
+  if(combats$First_pokemon_type2[i]!="None"){
     alt_effectivity <- double_type_table[combats$First_pokemon_type2_indx[i],combats$Second_pokemon_double_type_indx[i]]
     if (alt_effectivity > combats$First_pokemon_effectivity[i]){
       combats$First_pokemon_effectivity[i] <- alt_effectivity
     }
   }
-  print(i)
 }
 
 combats$Second_pokemon_effectivity <- 99
 for (i in 1:nrow(combats)){
   combats$Second_pokemon_effectivity[i] <- double_type_table[combats$Second_pokemon_type1_indx[i],combats$First_pokemon_double_type_indx[i]]
-  if(combats$Second_pokemon_type2!="None"){
+  if(combats$Second_pokemon_type2[i]!="None"){
     alt_effectivity <- double_type_table[combats$Second_pokemon_type2_indx[i],combats$First_pokemon_double_type_indx[i]]
     if (alt_effectivity > combats$Second_pokemon_effectivity[i]){
       combats$Second_pokemon_effectivity[i] <- alt_effectivity
     }
   }
-  print(i)
 }
 
 #####################

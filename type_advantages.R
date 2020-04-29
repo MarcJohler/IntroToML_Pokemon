@@ -1,3 +1,6 @@
+library(dplyr)
+library(stringr)
+library(tidyr)
 library(ggplot2)
 library(gridExtra)
 library(grid)

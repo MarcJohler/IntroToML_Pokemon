@@ -93,21 +93,35 @@ for (i in 1:nrow(combats)){
   }
 }
 
+combats$effectivity_advantage <- (combats$First_pokemon_effectivity-combats$Second_pokemon_effectivity)
+
+#did it work?
+#combats %>% dplyr::select(First_pokemon_double_type,Second_pokemon_double_type,First_pokemon_effectivity,Second_pokemon_effectivity) %>% View()
+
 #####################
 #try out
-classif_data <- combats %>% dplyr::select(attackVSdefense,defenseVSattack,sp_atkVSsp_def,sp_defVSsp_atk,speedVSspeed,HPVsHP,First_wins)
+classif_data <- combats %>% dplyr::select(First_pokemon_legendary,Second_pokemon_legendary,attackVSdefense,defenseVSattack,sp_atkVSsp_def,sp_defVSsp_atk,speedVSspeed,HPVSHP,First_wins)
 classif_data$First_wins <- as.factor(classif_data$First_wins)
 
 task_winner<- TaskClassif$new(id="predict_winner",backend=classif_data,target="First_wins")
 
 #kknn learner
-learner_kknn<- lrn("classif.kknn")
 learner_kknn$predict_type <- "prob"
 model_winner_kknn <- learner_kknn$train(task_winner)
 
 prediction_winner <- model_winner_kknn$predict(task_winner)
-prediction_winner$score(msr("classif.mcc")) # 0.9149449 
-prediction_winner$score() #0.04244 
+prediction_winner$score(msr("classif.mcc")) # 0.9331619 --> 0.9545343 (both effectivities, w.o. legendary)
+prediction_winner$score(msr("classif.acc")) # 0.96656 --> 0.9773 (both effectivities, w.o. legendary)
+prediction_winner$confusion 
+
+#ranger learner
+learner_kknn<- lrn("classif.ranger")
+learner_kknn$predict_type <- "prob"
+model_winner_kknn <- learner_kknn$train(task_winner)
+
+prediction_winner <- model_winner_kknn$predict(task_winner)
+prediction_winner$score(msr("classif.mcc")) # 0.9332919 --> 0.9569416 (both effectivities, w.o. legendary)
+prediction_winner$score(msr("classif.acc")) # 0.96662 --> 0.9785 (both effectivities, w.o. legendary)
 prediction_winner$confusion 
 
 #VS model from keggle
@@ -127,7 +141,7 @@ prediction_winner2$confusion
 
 
 ##compare importance measures
-information_gain1 <- flt("importance")
+information_gain1 <- flt("information_gain")
 information_gain2 <- flt("importance")
 my_scores <- information_gain1$calculate(task_winner)
 keggle_scores <- information_gain2$calculate(task_winner2)

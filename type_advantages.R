@@ -56,3 +56,99 @@ for (i in 1:(ncol(mytable)-2)){
 double_type_mapping <- data.frame(double_type=double_types_names,index=2:(length(double_types_names)+1))
 type_mapping <- data.frame(type=all_types,index=1:length(all_types))
 
+# read data sets from keggle
+combats <- read.csv("combats.csv",sep=",")
+pokemon <- read.csv("pokemon_battle_stats.csv",sep=",")
+
+names(pokemon) <- str_replace_all(names(pokemon),fixed("."),"")
+
+#find names
+combats$First_pokemon_name<-sapply(combats$First_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
+combats$Second_pokemon_name<-sapply(combats$Second_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
+combats$Winner_name<-sapply(combats$Winner, function(x) pokemon$Name[match(x, pokemon$X)])
+combats$First_wins <- combats$First_pokemon == combats$Winner
+
+# calculate stat differences
+combats$First_pokemon_attack<-sapply(combats$First_pokemon, function(x) pokemon$Attack[match(x, pokemon$X)])
+combats$Second_pokemon_attack<-sapply(combats$Second_pokemon, function(x) pokemon$Attack[match(x, pokemon$X)])
+combats$First_pokemon_HP<-sapply(combats$First_pokemon, function(x) pokemon$HP[match(x, pokemon$X)])
+combats$Second_pokemon_HP<-sapply(combats$Second_pokemon, function(x) pokemon$HP[match(x, pokemon$X)])
+combats$First_pokemon_defense<-sapply(combats$First_pokemon, function(x) pokemon$Defense[match(x, pokemon$X)])
+combats$Second_pokemon_defense<-sapply(combats$Second_pokemon, function(x) pokemon$Defense[match(x, pokemon$X)])
+combats$First_pokemon_sp_atk<-sapply(combats$First_pokemon, function(x) pokemon$SpAtk[match(x, pokemon$X)])
+combats$Second_pokemon_sp_atk<-sapply(combats$Second_pokemon, function(x) pokemon$SpAtk[match(x, pokemon$X)])
+combats$First_pokemon_sp_def<-sapply(combats$First_pokemon, function(x) pokemon$SpDef[match(x, pokemon$X)])
+combats$Second_pokemon_sp_def<-sapply(combats$Second_pokemon, function(x) pokemon$SpDef[match(x, pokemon$X)])
+combats$First_pokemon_speed<-sapply(combats$First_pokemon, function(x) pokemon$Speed[match(x, pokemon$X)])
+combats$Second_pokemon_speed<-sapply(combats$Second_pokemon, function(x) pokemon$Speed[match(x, pokemon$X)])
+
+combats$attackVSdefense <- combats$First_pokemon_attack - combats$Second_pokemon_defense
+combats$defenseVSattack <- combats$First_pokemon_defense - combats$Second_pokemon_attack
+combats$sp_atkVSsp_def <- combats$First_pokemon_sp_atk - combats$Second_pokemon_sp_def
+combats$sp_defVSsp_atk <- combats$First_pokemon_sp_def - combats$Second_pokemon_sp_atk
+combats$speedVSspeed <- combats$First_pokemon_speed - combats$Second_pokemon_speed
+combats$HPVSHP <- combats$First_pokemon_HP - combats$Second_pokemon_HP
+
+#add legendary status
+combats$First_pokemon_legendary<-sapply(combats$First_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
+combats$Second_pokemon_legendary<-sapply(combats$Second_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
+
+#add types and mapping
+combats$First_pokemon_type1<-sapply(combats$First_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
+combats$First_pokemon_type1_indx <- sapply(combats$First_pokemon_type1, function(x) type_mapping$index[match(x, type_mapping$type)])
+
+combats$First_pokemon_type2<-sapply(combats$First_pokemon, function(x) pokemon$Type2[match(x, pokemon$X)])
+empty_type_2 <- combats$First_pokemon_type2 ==""
+combats$First_pokemon_type2 <- as.character(combats$First_pokemon_type2)
+combats[empty_type_2,]$First_pokemon_type2  <- "None"
+combats$First_pokemon_type2 <- as.factor(combats$First_pokemon_type2)
+combats$First_pokemon_type2_indx <- sapply(combats$First_pokemon_type2, function(x) type_mapping$index[match(x, type_mapping$type)])
+
+combats$Second_pokemon_type1<-sapply(combats$Second_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
+combats$Second_pokemon_type1_indx <- sapply(combats$Second_pokemon_type1, function(x) type_mapping$index[match(x, type_mapping$type)])
+
+combats$Second_pokemon_type2<-sapply(combats$Second_pokemon, function(x) pokemon$Type2[match(x, pokemon$X)])
+empty_type_2 <- combats$Second_pokemon_type2 ==""
+combats$Second_pokemon_type2 <- as.character(combats$Second_pokemon_type2)
+combats[empty_type_2,]$Second_pokemon_type2  <- "None"
+combats$Second_pokemon_type2 <- as.factor(combats$Second_pokemon_type2)
+combats$Second_pokemon_type2_indx <- sapply(combats$Second_pokemon_type2, function(x) type_mapping$index[match(x, type_mapping$type)])
+
+#create double type and mapping
+combats$First_pokemon_double_type <- paste(combats$First_pokemon_type1,combats$First_pokemon_type2,sep="_")
+combats$First_pokemon_double_type_indx <- sapply(combats$First_pokemon_double_type, function(x) double_type_mapping$index[match(x, double_type_mapping$double_type)])
+combats$Second_pokemon_double_type <- paste(combats$Second_pokemon_type1,combats$Second_pokemon_type2,sep="_")
+combats$Second_pokemon_double_type_indx <- sapply(combats$Second_pokemon_double_type, function(x) double_type_mapping$index[match(x, double_type_mapping$double_type)])
+
+#lookup attack effectivity for each pokemon of each battle
+combats$First_pokemon_effectivity <- 99
+for (i in 1:nrow(combats)){
+  combats$First_pokemon_effectivity[i] <- double_type_table[combats$First_pokemon_type1_indx[i],combats$Second_pokemon_double_type_indx[i]]
+  if(combats$First_pokemon_type2[i]!="None"){
+    alt_effectivity <- double_type_table[combats$First_pokemon_type2_indx[i],combats$Second_pokemon_double_type_indx[i]]
+    if (alt_effectivity > combats$First_pokemon_effectivity[i]){
+      combats$First_pokemon_effectivity[i] <- alt_effectivity
+    }
+  }
+}
+
+combats$Second_pokemon_effectivity <- 99
+for (i in 1:nrow(combats)){
+  combats$Second_pokemon_effectivity[i] <- double_type_table[combats$Second_pokemon_type1_indx[i],combats$First_pokemon_double_type_indx[i]]
+  if(combats$Second_pokemon_type2[i]!="None"){
+    alt_effectivity <- double_type_table[combats$Second_pokemon_type2_indx[i],combats$First_pokemon_double_type_indx[i]]
+    if (alt_effectivity > combats$Second_pokemon_effectivity[i]){
+      combats$Second_pokemon_effectivity[i] <- alt_effectivity
+    }
+  }
+}
+
+combats$effectivity_advantage <- (combats$First_pokemon_effectivity-combats$Second_pokemon_effectivity)
+
+#drop helping variables
+combats <- combats %>% dplyr::select(attackVSdefense,defenseVSattack,sp_atkVSsp_def,sp_defVSsp_atk,speedVSspeed,HPVSHP,First_pokemon_effectivity,Second_pokemon_effectivity,First_wins)
+combats$First_wins <- as.factor(combats$First_wins)
+
+#save data set
+path <- getwd()
+write.csv(combats,paste(path,"combat_prediction_data.csv",sep="/"),row.names=TRUE)

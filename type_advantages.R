@@ -146,7 +146,7 @@ for (i in 1:nrow(combats)){
 combats$effectivity_advantage <- (combats$First_pokemon_effectivity-combats$Second_pokemon_effectivity)
 
 #drop helping variables
-combats <- combats %>% dplyr::select(attackVSdefense,defenseVSattack,sp_atkVSsp_def,sp_defVSsp_atk,speedVSspeed,HPVSHP,First_pokemon_effectivity,Second_pokemon_effectivity,First_wins)
+combats <- combats %>% dplyr::select(attackVSdefense,defenseVSattack,sp_atkVSsp_def,sp_defVSsp_atk,speedVSspeed,HPVSHP,First_pokemon_effectivity,Second_pokemon_effectivity,First_pokemon_legendary,Second_pokemon_legendary,First_wins)
 combats$First_wins <- as.factor(combats$First_wins)
 
 #save data set

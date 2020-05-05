@@ -7,149 +7,168 @@ library(glmnet)
 library(gamlss)
 library(mlr3verse)
 
-combats <- read.csv("combats.csv",sep=",")
-pokemon <- read.csv("pokemon_battle_stats.csv",sep=",")
+classif_data <- read.csv("combat_prediction_data.csv",sep=",")
+classif_data$First_wins <- classif_data$First_wins  %>% as.factor()
+classif_data <- classif_data[!classif_data$First_pokemon_faster == 0,]
 
-names(pokemon) <- str_replace_all(names(pokemon),fixed("."),"")
+complete_data <- classif_data %>% dplyr::select(attackVSattack_diff,defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,First_pokemon_faster,HPVSHP_diff,First_wins) 
 
-#find names
-combats$First_pokemon_name<-sapply(combats$First_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
-combats$Second_pokemon_name<-sapply(combats$Second_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
-combats$Winner_name<-sapply(combats$Winner, function(x) pokemon$Name[match(x, pokemon$X)])
-combats$First_wins <- combats$First_pokemon == combats$Winner
+task_winner<- TaskClassif$new(id="predict_winner",backend=complete_data,target="First_wins")
 
-# calculate stat differences
-combats$First_pokemon_attack<-sapply(combats$First_pokemon, function(x) pokemon$Attack[match(x, pokemon$X)])
-combats$Second_pokemon_attack<-sapply(combats$Second_pokemon, function(x) pokemon$Attack[match(x, pokemon$X)])
-combats$First_pokemon_HP<-sapply(combats$First_pokemon, function(x) pokemon$HP[match(x, pokemon$X)])
-combats$Second_pokemon_HP<-sapply(combats$Second_pokemon, function(x) pokemon$HP[match(x, pokemon$X)])
-combats$First_pokemon_defense<-sapply(combats$First_pokemon, function(x) pokemon$Defense[match(x, pokemon$X)])
-combats$Second_pokemon_defense<-sapply(combats$Second_pokemon, function(x) pokemon$Defense[match(x, pokemon$X)])
-combats$First_pokemon_sp_atk<-sapply(combats$First_pokemon, function(x) pokemon$SpAtk[match(x, pokemon$X)])
-combats$Second_pokemon_sp_atk<-sapply(combats$Second_pokemon, function(x) pokemon$SpAtk[match(x, pokemon$X)])
-combats$First_pokemon_sp_def<-sapply(combats$First_pokemon, function(x) pokemon$SpDef[match(x, pokemon$X)])
-combats$Second_pokemon_sp_def<-sapply(combats$Second_pokemon, function(x) pokemon$SpDef[match(x, pokemon$X)])
-combats$First_pokemon_speed<-sapply(combats$First_pokemon, function(x) pokemon$Speed[match(x, pokemon$X)])
-combats$Second_pokemon_speed<-sapply(combats$Second_pokemon, function(x) pokemon$Speed[match(x, pokemon$X)])
-
-combats$attackVSdefense <- combats$First_pokemon_attack - combats$Second_pokemon_defense
-combats$defenseVSattack <- combats$First_pokemon_defense - combats$Second_pokemon_attack
-combats$sp_atkVSsp_def <- combats$First_pokemon_sp_atk - combats$Second_pokemon_sp_def
-combats$sp_defVSsp_atk <- combats$First_pokemon_sp_def - combats$Second_pokemon_sp_atk
-combats$speedVSspeed <- combats$First_pokemon_speed - combats$Second_pokemon_speed
-combats$HPVSHP <- combats$First_pokemon_HP - combats$Second_pokemon_HP
-
-#add legendary status
-combats$First_pokemon_legendary<-sapply(combats$First_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
-combats$Second_pokemon_legendary<-sapply(combats$Second_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
-
-#add types and mapping
-combats$First_pokemon_type1<-sapply(combats$First_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
-combats$First_pokemon_type1_indx <- sapply(combats$First_pokemon_type1, function(x) type_mapping$index[match(x, type_mapping$type)])
-
-combats$First_pokemon_type2<-sapply(combats$First_pokemon, function(x) pokemon$Type2[match(x, pokemon$X)])
-empty_type_2 <- combats$First_pokemon_type2 ==""
-combats$First_pokemon_type2 <- as.character(combats$First_pokemon_type2)
-combats[empty_type_2,]$First_pokemon_type2  <- "None"
-combats$First_pokemon_type2 <- as.factor(combats$First_pokemon_type2)
-combats$First_pokemon_type2_indx <- sapply(combats$First_pokemon_type2, function(x) type_mapping$index[match(x, type_mapping$type)])
-
-combats$Second_pokemon_type1<-sapply(combats$Second_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
-combats$Second_pokemon_type1_indx <- sapply(combats$Second_pokemon_type1, function(x) type_mapping$index[match(x, type_mapping$type)])
-
-combats$Second_pokemon_type2<-sapply(combats$Second_pokemon, function(x) pokemon$Type2[match(x, pokemon$X)])
-empty_type_2 <- combats$Second_pokemon_type2 ==""
-combats$Second_pokemon_type2 <- as.character(combats$Second_pokemon_type2)
-combats[empty_type_2,]$Second_pokemon_type2  <- "None"
-combats$Second_pokemon_type2 <- as.factor(combats$Second_pokemon_type2)
-combats$Second_pokemon_type2_indx <- sapply(combats$Second_pokemon_type2, function(x) type_mapping$index[match(x, type_mapping$type)])
-
-#create double type and mapping
-combats$First_pokemon_double_type <- paste(combats$First_pokemon_type1,combats$First_pokemon_type2,sep="_")
-combats$First_pokemon_double_type_indx <- sapply(combats$First_pokemon_double_type, function(x) double_type_mapping$index[match(x, double_type_mapping$double_type)])
-combats$Second_pokemon_double_type <- paste(combats$Second_pokemon_type1,combats$Second_pokemon_type2,sep="_")
-combats$Second_pokemon_double_type_indx <- sapply(combats$Second_pokemon_double_type, function(x) double_type_mapping$index[match(x, double_type_mapping$double_type)])
-
-#lookup attack effectivity for each pokemon of each battle
-combats$First_pokemon_effectivity <- 99
-for (i in 1:nrow(combats)){
-  combats$First_pokemon_effectivity[i] <- double_type_table[combats$First_pokemon_type1_indx[i],combats$Second_pokemon_double_type_indx[i]]
-  if(combats$First_pokemon_type2[i]!="None"){
-    alt_effectivity <- double_type_table[combats$First_pokemon_type2_indx[i],combats$Second_pokemon_double_type_indx[i]]
-    if (alt_effectivity > combats$First_pokemon_effectivity[i]){
-      combats$First_pokemon_effectivity[i] <- alt_effectivity
-    }
-  }
-}
-
-combats$Second_pokemon_effectivity <- 99
-for (i in 1:nrow(combats)){
-  combats$Second_pokemon_effectivity[i] <- double_type_table[combats$Second_pokemon_type1_indx[i],combats$First_pokemon_double_type_indx[i]]
-  if(combats$Second_pokemon_type2[i]!="None"){
-    alt_effectivity <- double_type_table[combats$Second_pokemon_type2_indx[i],combats$First_pokemon_double_type_indx[i]]
-    if (alt_effectivity > combats$Second_pokemon_effectivity[i]){
-      combats$Second_pokemon_effectivity[i] <- alt_effectivity
-    }
-  }
-}
-
-combats$effectivity_advantage <- (combats$First_pokemon_effectivity-combats$Second_pokemon_effectivity)
-
-#did it work?
-#combats %>% dplyr::select(First_pokemon_double_type,Second_pokemon_double_type,First_pokemon_effectivity,Second_pokemon_effectivity) %>% View()
-
-#####################
-#try out
-classif_data <- combats %>% dplyr::select(First_pokemon_legendary,Second_pokemon_legendary,attackVSdefense,defenseVSattack,sp_atkVSsp_def,sp_defVSsp_atk,speedVSspeed,HPVSHP,First_wins)
-classif_data$First_wins <- as.factor(classif_data$First_wins)
-
-task_winner<- TaskClassif$new(id="predict_winner",backend=classif_data,target="First_wins")
 
 #kknn learner
+learner_kknn<- lrn("classif.kknn")
 learner_kknn$predict_type <- "prob"
 model_winner_kknn <- learner_kknn$train(task_winner)
 
-prediction_winner <- model_winner_kknn$predict(task_winner)
-prediction_winner$score(msr("classif.mcc")) # 0.9331619 --> 0.9545343 (both effectivities, w.o. legendary)
-prediction_winner$score(msr("classif.acc")) # 0.96656 --> 0.9773 (both effectivities, w.o. legendary)
-prediction_winner$confusion 
+prediction_winner_kknn <- model_winner_kknn$predict(task_winner)
+prediction_winner_kknn$score(c(msr("classif.mcc"),msr("classif.acc"))) 
+#MCC: 0.9248061  (both effectivities, w.o. legendary, untuned) VS. 0.8714248 (tuned)
+#ACC: 0.9625000 (both effectivities, w.o. legendary, untuned) VS. 0.9358600 (tuned)
+prediction_winner_kknn$confusion 
 
-#ranger learner
-learner_kknn<- lrn("classif.ranger")
+
+
+#svm learner
+learner_svm<- lrn("classif.svm")
+learner_svm$predict_type <- "prob"
+model_winner_svm <- learner_svm$train(task_winner)
+
+prediction_winner_svm <- model_winner_svm$predict(task_winner)
+prediction_winner_svm$score(c(msr("classif.mcc"),msr("classif.acc"))) 
+# MCC: 0.8737174(both effectivities, w.o. legendary) VS. 
+# ACC: 0.9370600 (both effectivities, w.o. legendary) VS. 
+prediction_winner_svm$confusion 
+
+# --> svm takes very long and doesn't have better results --> focus on KKNN
+
+
+###########################
+#KKNN-Approach
+
+#split data into train and test
+set.seed(42)
+all_indx <- 1:nrow(complete_data)
+train_indx <- sample.int(nrow(complete_data),round(0.8*nrow(complete_data)))
+test_indx <- setdiff(all_indx,train_indx)
+
+learner_kknn<- lrn("classif.kknn")
 learner_kknn$predict_type <- "prob"
-model_winner_kknn <- learner_kknn$train(task_winner)
+model_winner_kknn <- learner_kknn$train(task_winner,row_ids = train_indx)
 
-prediction_winner <- model_winner_kknn$predict(task_winner)
-prediction_winner$score(msr("classif.mcc")) # 0.9332919 --> 0.9569416 (both effectivities, w.o. legendary)
-prediction_winner$score(msr("classif.acc")) # 0.96662 --> 0.9785 (both effectivities, w.o. legendary)
-prediction_winner$confusion 
+#train performance
+prediction_winner_kknn_train <- model_winner_kknn$predict(task_winner,row_ids = train_indx)
+prediction_winner_kknn_train$score(c(msr("classif.mcc"),msr("classif.acc"))) 
+#MCC: 0.9222829  (untuned) VS. 0.8685786 (tuned)
+#ACC: 0.9612500 (untuned) VS. 0.9344500 (tuned)
+prediction_winner_kknn_train$confusion 
 
+
+task_winner_holdout <- TaskClassif$new(id="predict_winner2",backend=complete_data[train_indx,],target="First_wins")
+#CV
+resample <- rsmp(.key="cv")
+cv_results_kknn <- resample(task_winner_holdout, learner_kknn, resample)
+cv_results_kknn$aggregate(c(msr("classif.mcc"),msr("classif.acc"))) 
+#MCC: 0.7871992 (untuned) VS. 0.836161
+#ACC: 0.8938750 (untuned) VS. 0.918300
+
+
+
+
+# untuned for new stat compare 0.7950244   0.8978500
+#Tune
+# for distance we use most common distances for kknn 
+# for k we assume that the chance for each pokemon being in a battle is 1/800
+# ... this will lead to 1/800*40000 = 50 expected battles of each pokemon
+# ... so try with a number higher than 50 as maximum possible k
+
+resample_inner <- rsmp("cv",folds=10)
+measure <- msr("classif.acc")
+param_set <- ParamSet$new(
+  params = list(ParamInt$new("k",lower=1,upper=200),
+                ParamInt$new("distance",lower=1,upper=3)
+  )
+)
+
+terminator <- term("evals",n_evals=300)
+tuner <- tnr("grid_search")
+at_kknn <- AutoTuner$new(learner_kknn,resample_inner,measure,param_set,terminator,tuner)
+resampling_outer = rsmp("cv",folds=3)
+rr_kknn <- resample(task = task_winner_holdout, learner = at_kknn, resampling = resampling_outer)
+
+
+rr_kknn$aggregate(msr("classif.acc"))
+
+
+
+
+#test performance 
+prediction_winner_kknn_test <- model_winner_kknn$predict(task_winner,row_ids = test_indx)
+prediction_winner_kknn_test$score(c(msr("classif.mcc"),msr("classif.acc"))) 
+#MCC: 0.7847276  (both effectivities, w.o. legendary, untuned) VS. 0.8324419 (tuned)
+#ACC: 0.8926000 (both effectivities, w.o. legendary, untuned) VS. 0.9164000  (tuned)
+prediction_winner_kknn_test$confusion 
+
+
+
+########
+#SVM-Modell
+learner_svm<- lrn("classif.svm",type="C-classification",kernel="radial")
+learner_svm$predict_type <- "prob"
+
+model_winner_svm <- learner_svm$train(task_winner,row_ids = train_indx)
+
+#train performance
+prediction_winner_svm_train <- model_winner_svm$predict(task_winner,row_ids = train_indx)
+prediction_winner_svm_train$score(c(msr("classif.mcc"),msr("classif.acc"))) 
+#MCC: 0.8710978 (untuned)
+#ACC: 0.9357750 (untuned)
+
+prediction_winner_svm_train$confusion 
+
+#CV
+resample <- rsmp(.key="cv")
+cv_results_svm <- resample(task_winner_holdout, learner_svm, resample)
+cv_results_svm$aggregate(c(msr("classif.mcc"),msr("classif.acc"))) 
+#MCC: 0.8563248 (untuned)
+#ACC: 0.9284000 (untuned)
+
+
+param_set_svm <- ParamSet$new(
+  params = list(ParamDbl$new("cost",lower=10^(-5),upper=10^5),
+                ParamDbl$new("gamma",lower=10^(-5),upper=10^5)
+  )
+)
+
+possible_values <- c(10^(-5),10^(-4),10^(-3),10^(-2),10^(-1),10^(0),10^(1),10^(2),10^(3),10^(4),10^(5))
+no_possible_values <- length(possible_values)
+
+design <- generate_design_grid(param_set_svm,resolution=11)
+design$data$cost <-rep(possible_values,times=no_possible_values)
+design$data$gamma <- rep(possible_values,each=no_possible_values)
+
+terminator_svm <- term("evals",n_evals=150)
+tuner <- tnr("design_points",design=design$data)
+at_svm <- AutoTuner$new(learner_svm,resample_inner,measure,param_set_svm,terminator_svm,tuner)
+resampling_outer = rsmp("cv",folds=3)
+rr_svm <- resample(task = task_winner_holdout, learner = at_svm, resampling = resampling_outer)
+
+######################
 #VS model from keggle
 combats_keggle <- read.csv("FightPokemon.csv",sep=",")
 combats_keggle <- dplyr::select(combats_keggle,-c(X,Second_pokemon_legendary,First_pokemon_legendary))
 
 task_winner2<- TaskClassif$new(id="predict_winner2",backend=combats_keggle,target="winner_first_label")
 #kknn learner
-learner_kknn<- lrn("classif.kknn")
-learner_kknn$predict_type <- "prob"
+learner_kknn2<- lrn("classif.kknn")
+learner_kknn2$predict_type <- "prob"
 model_winner_kknn2 <- learner_kknn$train(task_winner2)
 
 prediction_winner2 <- model_winner_kknn2 $predict(task_winner2)
 prediction_winner2$score(msr("classif.mcc")) # 0.9161688 
-prediction_winner2$score() # 0.04184
+prediction_winner2$score(msr("classif.acc")) # 0.04184
 prediction_winner2$confusion 
 
 
-##compare importance measures
-information_gain1 <- flt("information_gain")
-information_gain2 <- flt("importance")
-my_scores <- information_gain1$calculate(task_winner)
-keggle_scores <- information_gain2$calculate(task_winner2)
 
-########################
-
-
-#find the type/legendary for the winner
-
-combats$winner_legendary<-sapply(combats$Winner_name, function(x) pokemon$Legendary[match(x, pokemon$Name)])
 

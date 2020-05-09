@@ -114,7 +114,7 @@ measure <- msr("classif.acc")
 param_set <- ParamSet$new(
   params = list(ParamDbl$new("laplace",lower = 0,upper=1),
                 ParamDbl$new("threshold",lower=0.04444,upper=1),
-                ParamDbl$new("eps",lower=0.00000000001,upper = 0.00000000001)
+                ParamDbl$new("eps",lower=0.00000000001,upper = 0.000000001)
   )
 )
 
@@ -182,8 +182,8 @@ cv_results_svm$aggregate(msr("classif.acc"))
 
 
 learner_glm<- lrn("classif.glmnet",alpha=0.85,s=0.06,eps=0.0000000045)
-learner_logistic<-lrn("classif.log_reg",maxit=20,epsilon=0.0000001)
-learner_naive<-  lrn("classif.naive_bayes",laplace=0.5,threshold=0.5,eps=0.0000001)
+learner_logistic<-lrn("classif.log_reg",maxit=20,epsilon=0.0000000001)
+learner_naive<-  lrn("classif.naive_bayes",laplace=0.5,threshold=0.5,eps=0.0000000001)
 learner_kknn<- lrn("classif.kknn",k=45, distance=1)
 learners<-list(learner_glm,learner_logistic,learner_naive,learner_kknn)
 

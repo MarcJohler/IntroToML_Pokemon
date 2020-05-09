@@ -60,14 +60,6 @@ type_mapping <- data.frame(type=all_types,index=1:length(all_types))
 combats <- read.csv("combats.csv",sep=",")
 pokemon <- read.csv("pokemon_battle_stats.csv",sep=",")
 
-# missing Name value for pokemon
-pokemon$Name <- as.character(pokemon$Name)
-pokemon[pokemon$Name=="",]$Name <- "Primeape"
-pokemon$Name <- as.factor(pokemon$Name)
-
-#use better format for variable names
-names(pokemon) <- str_replace_all(names(pokemon),fixed("."),"")
-
 #find names
 combats$First_pokemon_name<-sapply(combats$First_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
 combats$Second_pokemon_name<-sapply(combats$Second_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
@@ -105,9 +97,17 @@ combats$HPVSHP_diff <- combats$First_pokemon_HP-combats$Second_pokemon_HP
 #first Pokemon faster?
 combats$First_pokemon_faster <- sign(combats$speedVSspeed_diff)
 
+combats$attackVSattack <- combats$First_pokemon_attack - combats$Second_pokemon_attack
+combats$defenseVSdefense <- combats$First_pokemon_defense - combats$Second_pokemon_defense
+combats$sp_atkVSsp_atk <- combats$First_pokemon_sp_atk - combats$Second_pokemon_sp_atk
+combats$sp_defVSsp_def <- combats$First_pokemon_sp_def - combats$Second_pokemon_sp_def
+combats$speedVSspeed <- combats$First_pokemon_speed - combats$Second_pokemon_speed
+combats$HPVSHP <- combats$First_pokemon_HP - combats$Second_pokemon_HP
+
+
 #add legendary status
-combats$First_pokemon_legendary<-sapply(combats$First_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
-combats$Second_pokemon_legendary<-sapply(combats$Second_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])
+combats$First_pokemon_legendary<-sapply(combats$First_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])%>%as.logical()%>%as.factor()
+combats$Second_pokemon_legendary<-sapply(combats$Second_pokemon, function(x) pokemon$Legendary[match(x, pokemon$X)])%>%as.logical()%>%as.factor()
 
 #add types and mapping
 combats$First_pokemon_type1<-sapply(combats$First_pokemon, function(x) pokemon$Type1[match(x, pokemon$X)])
@@ -181,6 +181,7 @@ for (i in 1:nrow(combats)){
 }
 
 
+
 #combats$effectivity_advantage <- (combats$First_pokemon_effectivity-combats$Second_pokemon_effectivity)
 
 # full data - only necessary for shiny dashboard
@@ -191,7 +192,9 @@ write.csv(combats,paste(path,"combat_full_data.csv",sep="/"),row.names=TRUE)
 combats$First_wins <- combats$First_wins  %>% as.factor()
 combats <- combats[!combats$First_pokemon_faster == 0,]
 
-complete_data <- combats %>% dplyr::select(attackVSattack_diff,defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,speedVSspeed_diff,First_pokemon_faster,HPVSHP_diff,First_pokemon_legendary,Second_pokemon_legendary,First_wins)
+combats <- combats %>% dplyr::select(attackVSattack_diff,defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,speedVSspeed_diff,First_pokemon_faster,HPVSHP_diff,First_pokemon_legendary,Second_pokemon_legendary,First_wins)
+combats$First_wins <- as.factor(combats$First_wins)
+
 
 #save data set for prediction
 path <- getwd()

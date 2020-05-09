@@ -48,9 +48,9 @@ task_train<-TaskClassif$new(id="First_wins",backend=new_data[train_indx,],target
 
 
 learner_glmnet <- lrn("classif.glmnet")
-learner_glmnet$train(newtask,row_ids = train_indx)
+learner_glmnet$train(task_train,row_ids = train_indx)
 
-pred_glmnet <- learner_glmnet$predict(newtask)
+pred_glmnet <- learner_glmnet$predict(task_train)
 learner_glmnet$param_set$ids()
 autoplot(pred_glmnet)
 pred_glmnet$score()
@@ -98,9 +98,9 @@ cv_results_svm$aggregate(msr("classif.acc"))
 ####model
 learner_baies <- lrn("classif.naive_bayes")
 
-learner_baies$train(newtask,row_ids = train_set2)
+learner_baies$train(task_train,row_ids = train_indx)
 
-pred_baies <- learner_baies$predict(newtask)
+pred_baies <- learner_baies$predict(task_train)
 autoplot(pred_baies)
 
 
@@ -147,9 +147,9 @@ cv_results_svm$aggregate(msr("classif.acc"))
 ####model
 learner_log <- lrn("classif.log_reg")
 
-learner_log$train(newtask,row_ids = train_indx)
+learner_log$train(task_train,row_ids = train_indx)
 
-pred_log <- learner_log$predict(newtask)
+pred_log <- learner_log$predict(task_train)
 autoplot(pred_log)
 
 

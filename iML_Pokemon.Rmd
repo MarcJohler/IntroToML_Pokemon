@@ -117,7 +117,21 @@ as.data.table(filter)
 * 6. attackVSdefense
 * 7. defenseVSattack
 * 8. sp_defVSsp_def_diff
+* 9. HPVSHP_diff
 
+# Reset Task with the selected Features
+
+Backend <- daten %>% dplyr::select(speedVSspeed_diff,
+sp_atkVSsp_atk_diff,
+sp_atkVSsp_def,
+sp_defVSsp_atk,
+attackVSattack_diff,
+attackVSdefense,
+defenseVSattack,
+sp_defVSsp_def_diff,
+HPVSHP_diff)
+
+task_combat = TaskClassif$new(id = "task_combat", backend = Backend, target = "First_wins")
 
 # Choose your favorite Learners 
 ```{r}

@@ -1,0 +1,315 @@
+---
+title: "Machine Learning Project : Pokemon Combat"
+author: "Hyeyoung Park", "", ""
+date: "`r Sys.Date()`"
+output:
+ html_document:
+    fig_width: 10
+    fig_height: 7
+    toc: yes
+    number_sections : yes
+    code_folding: show
+---
+
+#<center><img src="https://www.pokemongolive.com/img/posts/sleeping_snorlax_1024x512.jpg">
+#</center>
+
+```{r setup}
+options(width=100)
+knitr::opts_chunk$set(out.width='1000px',dpi=200,message=FALSE,warning=FALSE)
+```
+
+```{r}
+#load packages 
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(GGally)
+library(plotly) 
+library(gridExtra)
+library(corrplot)
+library(caret)
+library(ggthemes)
+library(RColorBrewer)
+library(fmsb)
+library(rpart.plot)
+library(ROCR)
+library(mlr3learners.gbm)
+library(ranger)
+library(mlr3)
+library(mlr3learners)
+library(mlr3measures)
+library(mlr3pipelines)
+library(mlr3tuning)
+library(mlr3filters)
+library(mlbench)
+library(mlr3misc)
+library(caret)
+library(mlr3viz)
+library(corrplot)
+library(mlr3verse)
+```
+
+# read Datasets : original Datasets from Kaggle (address)
+# pokemon800.csv : Information about each pokemon 
+# combats.csv : first pokemon ID, second pokemon ID, winner ID 
+
+```{r}
+pokemon <-read.csv("pokemon800.csv", sep = ",", header = TRUE, stringsAsFactors=TRUE)
+combats <-read.csv("combats.csv", sep = ", ", header = TRUE, stringsAsFactors = TRUE)
+```
+
+# Data Preparation
+```{r}
+colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_attack","sp_defense","speed","generation","is_legendary")
+```
+
+# Create New Dataset for Prediction
+# In order to predict winner pokemon, we need to create new pokemon dataset using pokemon information, 
+# as dataset "combats" includes only the information of pokemon IDs. 
+
+```{r}
+daten...
+```
+
+
+# Select useful variables and make temporal task for ML project 
+# Task : Binary Classification 
+# Target Value to predict : Is first pokemon the winner?  (if not, second pokemon wins of course :)) True/False
+
+```{r}
+Backend <- daten %>% dplyr::select( "attackVSdefense", "defenseVSattack",                
+                                    "sp_atkVSsp_def", "sp_defVSsp_atk",                 
+                                    "attackVSattack_diff", "defenseVSdefense_diff",
+                                    "sp_atkVSsp_atk_diff", "sp_defVSsp_def_diff",
+                                    "speedVSspeed_diff", "First_pokemon_faster",
+                                    "HPVSHP_diff", "First_pokemon_legendary",
+                                    "Second_pokemon_legendary", "First_wins")
+
+task_combat = TaskClassif$new(id = "task_combat1", backend = Backend, target = "First_wins")
+```
+
+# Feature Selection using the package "mlr3filter" 
+# 1. based on information_gain :- entropy-based feature evaluation 
+#                               - for tree model : 
+#                                 information gain decides which feature should be used to split the data 
+                            
+# 2. based on importance : 
+
+```{r}
+filter = flt("information_gain")  
+filter$calculate(task_combat)
+as.data.table(filter)
+
+filter = flt("importance")
+filter$calculate(task_combat)
+as.data.table(filter)
+```
+
+* According to the result from mlr3filter, we select: 
+* 1. speedVSspeed_diff
+* 2. sp_atkVSsp_atk_diff
+* 3. sp_atkVSsp_def
+* 4. sp_defVSsp_atk
+* 5. attackVSattack_diff
+* 6. attackVSdefense
+* 7. defenseVSattack
+* 8. sp_defVSsp_def_diff
+
+
+# Choose your favorite Learners 
+```{r}
+learner_glmnet <- mlr3::lrn("classif.glmnet", predict_type = "prob")
+learner_nb <- mlr3::lrn("classif.naive_bayes", predict_type = "prob")
+leaner_kknn <- mlr3::lrn("classif.kknn", predict_type = "prob")
+learner_RF <- mlr3::lrn("classif.ranger", predict_type = "prob")
+learner_xgboost <- mlr3::lrn("classif.xgboost", predict_type = "prob")
+```
+
+# One Hot Encoding  using pipeline
+
+```{r}
+fencoder = po("encode", method = "treatment",
+              affect_columns = selector_type("factor"))
+fencoder$train(list(task_combat))
+
+pipe = fencoder %>>% learner_glmnet
+learner_glmet = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_nb
+learner_nb = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_kknn
+learner_kknn = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_RF
+learner_RF = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_xgboost
+learner_xgboost = GraphLearner$new(pipe)
+```
+
+# Split train /test (saved as index)
+```{r}
+set.seed(1234)
+train_set = sample(task_combat$nrow, 0.8 * task_combat$nrow)
+test_set = setdiff(seq_len(task_combat$nrow), train_set)
+```
+
+# Training chosen learners
+```{r}
+set.seed(1234)
+learner_glmnet$train(task_combat, row_ids = train_set)
+learner_nb$train(task_combat, row_ids = train_set)
+learner_kknn$train(task_combat, row_ids = train_set)
+learner_RF$train(task_combat, row_ids = train_set)
+learner_xgboost$train(task_combat, row_ids = train_set)
+```
+
+# Prediction  
+```{r}
+glmnet_prediction = learner_glmnet$predict(task_combat, row_ids = test_set)
+nb_prediction = learner_nb$predict(task_combat, row_ids = test_set)
+kknn_prediction = learner_kknn$predict(task_combat, row_ids = test_set)
+RF_prediction = learner_RF$predict(task_combat, row_ids = test_set)
+xgboost_prediction = learner_xgboost$predict(task_combat, row_ids = test_set)
+
+measures <- msrs(c("classif.ce", "classif.acc"))
+glmnet_prediction$score(measures)
+nb_prediction$score(measures)
+kknn_prediction$score(measures)
+RF_prediction$score(measures)
+xgboost_prediction$score(measures)
+```
+
+# Tuning : 
+
+```{r}
+terminator <- term("evals", n_evals = 100) 
+tuner <- tnr("grid_search")
+resampling <- rsmp("cv", folds = 5)
+measures <- msrs(c("classif.ce", "classif.acc"))
+```
+
+# Tuning : setting glmnet hyperparameter and training the tuned learner 
+
+```{r}
+
+```
+
+# Tuning : setting navie bayes hyperparameter and training the tuned learner 
+
+```{r}
+
+```
+
+# Tuning : setting kknn hyperparameter and training the tuned learner 
+
+```{r}
+
+
+```
+
+# Tuning : setting ranger hyperparameter and training the tuned learner 
+
+```{r}
+tune_ps <- ParamSet$new(list(
+  ParamInt$new("classif.ranger.num.trees", lower = 10, upper = 300), 
+  #ParamFct$new("classif.ranger.importance", levels = c('none','impurity','impurity_corrected','permutation')), #recommended "impurity"
+  #ParamFct$new("classif.ranger.splitrule", levels = c('variance','extratrees','maxstat')), # Gini (but here no gini? option: variance,extratrees,maxstat)
+  ParamInt$new("classif.ranger.min.node.size", lower = 1, upper = 10), 
+  #ParamInt$new("classif.ranger.num.random.splits", lower = 1, upper = 10, default = 1)
+  ParamInt$new("classif.ranger.mtry", lower = 1, upper = 1) # if you change mtry, mse increases here, hence default values got used. 
+  #ParamDbl$new("classif.ranger.alpha", lower = 0.3, upper =0.8, default = 0.5) 
+))
+
+learner_tunedRF <- AutoTuner$new(
+  learner = learner_RF,
+  resampling = resampling,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner
+)
+
+set.seed(1234)
+tic("start training")
+learner_tunedRF$train(task_combat, row_ids = train_set)
+toc()
+```
+
+# Tuning : setting xgboost hyperparameter and training the tuned learner 
+
+```{r}
+tune_ps <- ParamSet$new(list(
+  ParamDbl$new("classif.xgboost.eta", lower = 0.3, upper = 0.5), # default 0.3
+  # eta : learning rate.
+  # eta increasing -> training error decreases faster in the training
+  # Step size shrinkage used in update to prevents overfitting. After each boosting step, 
+  # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process      # more conservative.
+  ParamDbl$new("classif.xgboost.gamma", lower = 0, upper = 0), # default 0 gamma = 0 is the best here
+  # gamma : Minimum loss reduction required to make a further partition on a leaf node of the tree. 
+  # gamma increasing -> training error decreases slower in the training
+  # The larger gamma is, the more conservative the algorithm will be.
+  ParamInt$new("classif.xgboost.max_depth", lower = 15, upper = 20), # default 6
+  # Maximum depth of a tree. Increasing this value will make the model more complex and more likely to overfit. 
+  # 0 is only accepted in lossguided growing policy when tree_method is set as hist and it indicates no limit on depth. 
+  # Beware that XGBoost aggressively consumes memory when training a deep tree.
+  ParamDbl$new("classif.xgboost.min_child_weight", lower = 0.01, upper= 0.01),#default 1
+  #min_child_weight : Minimum sum of instance weight (hessian) needed in a child. 
+  #If the tree partition step results in a leaf node with the sum of instance weight less than min_child_weight, 
+  #then the building process will give up further partitioning. In linear regression task, 
+  #this simply corresponds to minimum number of instances needed to be in each node. 
+  #The larger min_child_weight is, the more conservative the algorithm will be.
+  #Too high values can lead to under-fitting hence, it should be tuned using CV.
+  ParamInt$new("classif.xgboost.nrounds", lower = 30, upper = 100) # Number of Tree : more trees less train error
+  # If other hyperparameters would have been tuned well enough, nrounds needs to be big. if it increases, it could cause waisting running time.
+))
+
+learner_tunedxgboost <- AutoTuner$new(
+  learner = learner_xgboost,
+  resampling = resampling,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner
+)
+
+set.seed(1234)
+tic("start training")
+learner_tunedxgboost$train(task_combat, row_ids = train_set)
+toc()
+
+```
+
+# Prediction with the tuned learners
+```{r}
+#glmnet
+
+#naive bayes
+
+#kknn
+
+#random forest (ranger)
+learner_tunedRF$tuning_result
+tunedRF_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
+
+
+#xgboost
+learner_tunedxgboost$tuning_result
+tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
+
+```
+
+# Nest Resampling 
+```{r}
+
+```
+
+# Benchmark
+```{r}
+
+```
+

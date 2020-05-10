@@ -1,6 +1,6 @@
 ---
 title: "Machine Learning Project : Pokemon Combat"
-author: "Hyeyoung Park", "", ""
+author: "Hyeyoung Park", "Marc Johler", ""
 date: "`r Sys.Date()`"
 output:
  html_document:
@@ -64,6 +64,7 @@ combats <-read.csv("combats.csv", sep = ", ", header = TRUE, stringsAsFactors = 
 ```
 # Data Preparation
 ```{r}
+#use better format for variable names
 colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_attack","sp_defense","speed","generation","is_legendary")
 ```
 
@@ -77,8 +78,52 @@ colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_a
 # as dataset "combats" includes only the information of pokemon IDs. 
 
 ```{r}
-daten...
+daten <- combats
 
+#find names
+daten$First_pokemon_name<-sapply(daten$First_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
+daten$Second_pokemon_name<-sapply(daten$Second_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
+daten$Winner_name<-sapply(daten$Winner, function(x) pokemon$name[match(x, pokemon$id)])
+daten$First_wins <- daten$First_pokemon == daten$Winner
+
+# calculate stat differences
+daten$First_pokemon_attack<-sapply(daten$First_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+daten$Second_pokemon_attack<-sapply(daten$Second_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+daten$First_pokemon_hp<-sapply(daten$First_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+daten$Second_pokemon_hp<-sapply(daten$Second_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+daten$First_pokemon_defense<-sapply(daten$First_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+daten$Second_pokemon_defense<-sapply(daten$Second_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+daten$First_pokemon_sp_atk<-sapply(daten$First_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+daten$Second_pokemon_sp_atk<-sapply(daten$Second_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+daten$First_pokemon_sp_def<-sapply(daten$First_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
+daten$Second_pokemon_sp_def<-sapply(daten$Second_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
+daten$First_pokemon_speed<-sapply(daten$First_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+daten$Second_pokemon_speed<-sapply(daten$Second_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+
+daten$attackVSattack_diff <- daten$First_pokemon_attack-daten$Second_pokemon_attack
+daten$defenseVSdefense_diff <- daten$First_pokemon_defense-daten$Second_pokemon_defense
+daten$sp_atkVSsp_atk_diff <- daten$First_pokemon_sp_atk-daten$Second_pokemon_sp_atk
+daten$sp_defVSsp_def_diff <- daten$First_pokemon_sp_def-daten$Second_pokemon_sp_def
+daten$speedVSspeed_diff <- daten$First_pokemon_speed-daten$Second_pokemon_speed
+daten$HPVSHP_diff <- daten$First_pokemon_HP-daten$Second_pokemon_HP
+
+#first Pokemon faster?
+daten$First_pokemon_faster <- sign(daten$speedVSspeed_diff)
+
+#add legendary status
+daten$First_pokemon_legendary<-sapply(daten$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+daten$Second_pokemon_legendary<-sapply(daten$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+
+#table(daten$First_pokemon_faster,daten$First_wins)
+# higher speed is defenitely an advantage for a pokemon in a battle, since it defines which Pokemon may act first 
+# If the speed of two fighting Pokemons is the same, the beginner will be defined randomly
+# This means positive values should have a positive impact on First_wins and negative values a negative impact. A value of zero however should have no impact since the beginner is defined completely random. 
+# In the later process you will see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.  
+# Since this is very unlikely to happen randomly, we assume that there is a data error for those specific observations
+
+#exclude all of those observations with equal speed of both Pokemon
+daten$First_wins <- daten$First_wins  %>% as.factor()
+daten <- daten[!daten$First_pokemon_faster == 0,]
 
 # convert the logical variables into factor
 colnames(daten)
@@ -231,8 +276,28 @@ measures <- msrs(c("classif.ce", "classif.acc"))
 # Tuning : setting kknn hyperparameter and training the tuned learner 
 
 ```{r}
+### for KKNN the main aspects are:
+## - the distance measure which is used to define similarity (respectively dissimilarity) between the pokemon battles. mlr3-kknn supports only the Minowski-distance with different parameters. We will consider distance-parameter 1,2 and 3.
+# - Minowksi-distance with parameter 1 is the Manhattan-distance
+# - Minowksi-distance with parameter 2 is the Euclidean distance
+# - Minowski-distance with parameter 3 is not so commonly used, but could also lead to better results in specific cases
+## - the number of closest neighbors considered to predict an observation (k)
+# - we 
+resample_inner <- rsmp("cv",folds=10)
+param_set <- ParamSet$new(
+  params = list(ParamInt$new("k",lower=1,upper=200),
+                ParamInt$new("distance",lower=1,upper=3)
+  )
+)
+terminator <- term("none")
+tuner <- tnr("grid_search")
+learner_tunedkknn <- AutoTuner$new(learner_kknn,resample_inner,measures,param_set,terminator,tuner)
+resampling_outer = rsmp("cv",folds=3)
 
-
+set.seed(1234)
+tic("start training")
+learner_tunedkknn$train(task_combat, row_ids = train_set)
+toc()
 ```
 
 # Tuning : setting ranger hyperparameter and training the tuned learner 
@@ -314,6 +379,8 @@ toc()
 #naive bayes
 
 #kknn
+learner_tunedkknn$tuning_result
+tunedkknn_prediction = learner_tunedkknn$predict(task_combat, row_ids = test_set)
 
 #random forest (ranger)
 learner_tunedRF$tuning_result
@@ -345,4 +412,81 @@ tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = te
 ```{r}
 # choose your two pokemons and predict the winner using the Benchmark Best Learner
 # Visulisation from Marc : guage graph 
+
+# input are pokemon id numbers from the pokemon data set
+pokemonA <- 122
+pokemonB <- 457
+
+#remember_prob remembers last probability of a battle prediction. This just has to be set before the first function use one time
+remember_prob <- as.double(NA)
+
+#this function runs the prediction for two fighting pokemon and then visualizes the probability for pokemon A to win. 
+percentage_plot <- function(pokemonA,pokemonB){
+  data_for_classification <- data.frame(row.names=1)
+  data_for_classification$First_pokemon <- pokemonA
+  data_for_classification$Second_pokemon <- pokemonB
+  
+  # calculate stat differences
+  data_for_classification$First_pokemon_attack<-sapply(data_for_classification$First_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_attack<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_HP<-sapply(data_for_classification$First_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_HP<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_defense<-sapply(data_for_classification$First_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_defense<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_sp_atk<-sapply(data_for_classification$First_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_sp_atk<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_sp_def<-sapply(data_for_classification$First_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_sp_def<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_def[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_speed<-sapply(data_for_classification$First_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_speed<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+  
+  data_for_classification$attackVSattack_diff <- data_for_classification$First_pokemon_attack-data_for_classification$Second_pokemon_attack
+  data_for_classification$defenseVSdefense_diff <- data_for_classification$First_pokemon_defense-data_for_classification$Second_pokemon_defense
+  data_for_classification$sp_atkVSsp_atk_diff <- data_for_classification$First_pokemon_sp_atk-data_for_classification$Second_pokemon_sp_atk
+  data_for_classification$sp_defVSsp_def_diff <- data_for_classification$First_pokemon_sp_def-data_for_classification$Second_pokemon_sp_def
+  data_for_classification$speedVSspeed_diff <- data_for_classification$First_pokemon_speed-data_for_classification$Second_pokemon_speed
+  data_for_classification$HPVSHP_diff <- data_for_classification$First_pokemon_HP-data_for_classification$Second_pokemon_HP
+  
+  #first Pokemon faster?
+  data_for_classification$First_pokemon_faster <- sign(data_for_classification$speedVSspeed_diff)
+  
+  #add legendary status
+  data_for_classification$First_pokemon_legendary<-sapply(data_for_classification$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+  data_for_classification$Second_pokemon_legendary<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+  
+  #select the variables you need for your specific model
+  data_for_classification <- data_for_classification %>% dplyr::select(attackVSattack_diff,defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,HPVSHP_diff,First_pokemon_faster)
+  
+  #insert final model here. KKNN is placeholder
+  prediction <- learner_tunedkknn$predict_newdata(newdata=data_for_classification)
+  prob <- prediction$prob[,2] 
+  
+  
+  fig <- plot_ly(
+    type = "indicator",
+    mode = "gauge+number+delta",
+    value = prob,
+    title = list(text = "Probability for First Pokemon to win", font = list(size = 30)),
+    delta = list(reference = remember_prob, increasing = list(color = "lightgreen"),decreasing=list(color="red")),
+    gauge = list(
+      axis = list(range = list(0, 1), tickwidth = 1, tickcolor = "black"),
+      bar = list(color = "black"),
+      bgcolor = "white",
+      borderwidth = 2,
+      bordercolor = "gray",
+      steps = list(
+        list(range = c(0, 0.2), color = "red"),
+        list(range = c(0.2,0.4), color = "orange"),
+        list(range = c(0.4,0.6), color = "yellow"),
+        list(range = c(0.6,0.8), color = "chartreuse"),                                   
+        list(range = c(0.8,1), color = "darkgreen")))) 
+  fig <- fig %>%
+    layout(
+      margin = list(l=20,r=30),
+      paper_bgcolor = "lavender",
+      font = list(color = "black", family = "Arial",size=20))
+  
+  remember_prob <<- prob[1] %>% as.numeric()
+  fig
+}
 ```

@@ -122,15 +122,15 @@ as.data.table(filter)
 # Reset Task with the selected Features
 
 ```{r}
-Backend <- daten %>% dplyr::select(speedVSspeed_diff,
-sp_atkVSsp_atk_diff,
-sp_atkVSsp_def,
-sp_defVSsp_atk,
-attackVSattack_diff,
-attackVSdefense,
-defenseVSattack,
-sp_defVSsp_def_diff,
-HPVSHP_diff)
+ Backend <- daten %>% dplyr::select(speedVSspeed_diff, 
+                                   sp_atkVSsp_atk_diff,
+                                   sp_atkVSsp_def,
+                                   sp_defVSsp_atk,
+                                   attackVSattack_diff,
+                                   attackVSdefense,
+                                   defenseVSattack,
+                                   sp_defVSsp_def_diff,
+                                   HPVSHP_diff)
 
 task_combat = TaskClassif$new(id = "task_combat", backend = Backend, target = "First_wins")
 ```
@@ -215,7 +215,7 @@ measures <- msrs(c("classif.ce", "classif.acc"))
 
 ```
 
-# Tuning : setting navie bayes hyperparameter and training the tuned learner 
+# Tuning : setting naive bayes hyperparameter and training the tuned learner 
 
 ```{r}
 

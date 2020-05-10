@@ -2,13 +2,8 @@
 title: "Machine Learning Project : Pokemon Combat"
 author: "Hyeyoung Park", "Marc Johler", ""
 date: "`r Sys.Date()`"
-output:
- html_document:
-    fig_width: 10
-    fig_height: 7
-    toc: yes
-    number_sections : yes
-    code_folding: show
+output: pdf_document
+
 ---
 
 <center><img src="https://pics.me.me/pokemon-go-protective-mask-pikachu-special-event-70613775.png">

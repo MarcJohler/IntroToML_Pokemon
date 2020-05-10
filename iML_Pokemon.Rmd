@@ -21,6 +21,8 @@ knitr::opts_chunk$set(out.width='1000px',dpi=200,message=FALSE,warning=FALSE)
 
 ```{r}
 #load packages 
+library(tictoc)
+library(formattable)
 library(data.table)
 library(dplyr)
 library(tidyr)

@@ -62,10 +62,14 @@ library(mlr3verse)
 pokemon <-read.csv("pokemon800.csv", sep = ",", header = TRUE, stringsAsFactors=TRUE)
 combats <-read.csv("combats.csv", sep = ", ", header = TRUE, stringsAsFactors = TRUE)
 ```
-
 # Data Preparation
 ```{r}
 colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_attack","sp_defense","speed","generation","is_legendary")
+```
+
+# Descriptive Statistik : EDA Pokomon
+```{r}
+# shiny link
 ```
 
 # Create New Dataset for Prediction
@@ -332,3 +336,13 @@ tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = te
 
 ```
 
+# Benchmark Result
+```{r}
+# Benchmark Boxplot
+```
+
+# Combat 2 Pokemon
+```{r}
+# choose your two pokemons and predict the winner using the Benchmark Best Learner
+# Visulisation from Marc : guage graph 
+```

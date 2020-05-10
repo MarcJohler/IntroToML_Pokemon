@@ -116,7 +116,7 @@ as.data.table(filter)
 
 filter = flt("importance")
 filter$calculate(task_combat)
-as.data.table(filter)
+formattable(as.data.table(filter), list(score = color_tile("transparent", "lightpink")))
 ```
 * According to the result from mlr3filter, we select: 
 1. speedVSspeed_diff 

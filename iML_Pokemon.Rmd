@@ -395,6 +395,19 @@ learner_tunedxgboost$tuning_result
 tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
 
 ```
+# Compare Prediction Before & After Tuning Models
+```{r}
+glmnet_prediction$score(measures)
+tunedglmnet_prediction&score(measures)
+nb_prediction$score(measures)
+tunednb_prediction&score(measures)
+kknn_prediction$score(measures)
+tunedkknn_prediction&score(measures)
+RF_prediction$score(measures)
+tunedRF_prediction&score(measures)
+xgboost_prediction$score(measures)
+tunedxgboost_prediction&score(measures)
+```
 
 # Nest Resampling 
 ```{r}

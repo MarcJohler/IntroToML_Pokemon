@@ -265,12 +265,44 @@ measures <- msrs(c("classif.ce", "classif.acc"))
 
 ```{r}
 
+resample_inner <- rsmp("cv",folds=10)
+param_set <- ParamSet$new(
+  params = list(ParamDbl$new("alpha",lower=0.8,upper=0.9),
+                ParamDbl$new("s",lower=0.05,upper=0.07),
+                ParamDbl$new("eps",lower = 0.0000000000000004,upper=0.00000005)
+  )
+)
+terminator <- term("none")
+tuner <- tnr("grid_search")
+learner_tunedglmnet <- AutoTuner$new(learner_glmnet,resample_inner,measures,param_set,terminator,tuner)
+resampling_outer = rsmp("cv",folds=3)
+
+set.seed(1234)
+tic("start training")
+learner_tunedglmnet$train(task_combat, row_ids = train_set)
+toc()
+
 ```
 
 # Tuning : setting naive bayes hyperparameter and training the tuned learner 
 
 ```{r}
+resample_inner <- rsmp("cv",folds=10)
+param_set <- ParamSet$new(
+  params = list(ParamDbl$new("laplace",lower = 0,upper=1),
+                ParamDbl$new("threshold",lower=0.04444,upper=1),
+                ParamDbl$new("eps",lower=0.00000000001,upper = 0.000000001)
+  )
+)
+terminator <- term("none")
+tuner <- tnr("grid_search")
+learner_tunednb <- AutoTuner$new(learner_nb,resample_inner,measures,param_set,terminator,tuner)
+resampling_outer = rsmp("cv",folds=3)
 
+set.seed(1234)
+tic("start training")
+learner_tunednb$train(task_combat, row_ids = train_set)
+toc()
 ```
 
 # Tuning : setting kknn hyperparameter and training the tuned learner 
@@ -378,9 +410,11 @@ toc()
 # Prediction with the tuned learners
 ```{r}
 #glmnet
-
+learner_tunedglmnet$tuning_result
+tunedglmnet_prediction = learner_tunedglmnet$predict(task_combat, row_ids = test_set)
 #naive bayes
-
+learner_tunednb$tuning_result
+tunednb_prediction = learner_tunednb$predict(task_combat, row_ids = test_set)
 #kknn
 learner_tunedkknn$tuning_result
 tunedkknn_prediction = learner_tunedkknn$predict(task_combat, row_ids = test_set)
@@ -416,12 +450,22 @@ tunedxgboost_prediction&score(measures)
 
 # Benchmark
 ```{r}
+learner_glm_bench<- lrn("classif.glmnet",alpha=0.85,s=0.06,eps=0.0000000045)
+learner_naive_bench<- lrn("classif.naive_bayes",laplace=0.5,threshold=0.5,eps=0.0000000001)
+learner_kknn_bench<- lrn("classif.kknn",k=45, distance=1)
+learner_ranger_bench <-lrn("classif.ranger",num.trees = 203, min.node.size = 2, mtry=1)
+learner_xg_bench <-lrn("classif.xgboost",eta = 0.4777778, gamma = 0, max_depth = 15, min_child_weight =0.01, nrounds = 30)
 
+learners<-list(learner_glm_bench,learner_naive_bench,learner_kknn_bench,learner_ranger_bench,learner_xg_bench)
+
+design<-benchmark_grid(tasks = task_combat,learners = learners,resamplings =rsmp("cv", folds = 3))
+bmr <-benchmark(design)
 ```
 
 # Benchmark Result
 ```{r}
 # Benchmark Boxplot
+autoplot(bmr,measure = msr("classif.acc"))
 ```
 
 # Combat 2 Pokemon

@@ -74,6 +74,15 @@ colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_a
 
 ```{r}
 daten...
+
+
+# convert the logical variables into factor
+colnames(daten)
+for(i in 1:ncol(daten)){
+  if(class(daten[,i]) == "logical"){
+    daten[,i] <- as.factor(daten[,i])
+  }
+}
 ```
 
 

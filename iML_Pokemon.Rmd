@@ -11,8 +11,8 @@ output:
     code_folding: show
 ---
 
-#<center><img src="https://www.pokemongolive.com/img/posts/sleeping_snorlax_1024x512.jpg">
-#</center>
+<center><img src="https://pics.me.me/pokemon-go-protective-mask-pikachu-special-event-70613775.png">
+</center>
 
 ```{r setup}
 options(width=100)

@@ -282,7 +282,10 @@ measures <- msrs(c("classif.ce", "classif.acc"))
 # - Minowksi-distance with parameter 2 is the Euclidean distance
 # - Minowski-distance with parameter 3 is not so commonly used, but could also lead to better results in specific cases
 ## - the number of closest neighbors considered to predict an observation (k)
-# - we 
+# - we have < 50000 observations in the data set and ~ 800 different Pokemon which could be used in a battle. 
+# - this means the probability for two Pokemon to be selected as competitors in a battle is ~ (1/800) * (1/800) * 2 = 0.000003125
+# - this means we expect 0.000003125 * 50000 = 0.15625 battles between each pair of Pokemons. Since Pokemon fights could be estimated best by looking at the same competitors results in the past, we expect a rather low k to be the best parameter. Since this assumption is based on intuition rather than on scientific proof, we still choose a rather high parameter value limit for k (200). 
+
 resample_inner <- rsmp("cv",folds=10)
 param_set <- ParamSet$new(
   params = list(ParamInt$new("k",lower=1,upper=200),

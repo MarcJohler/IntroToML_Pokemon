@@ -7,11 +7,13 @@ library(glmnet)
 library(gamlss)
 library(mlr3verse)
 library(plotly)
+library(precrec)
 
 classif_data <- read.csv("combat_prediction_data.csv",sep=",")
-classif_data <- classif_data %>% dplyr::select(attackVSattack_diff,defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,First_pokemon_faster,HPVSHP_diff,First_wins) 
+classif_data <- classif_data %>% dplyr::select(attackVSattack_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,speedVSspeed_diff,HPVSHP_diff,First_wins) 
+classif_data$First_wins <- as.factor(classif_data$First_wins)
 
-task_winner<- TaskClassif$new(id="predict_winner",backend=complete_data,target="First_wins")
+task_winner<- TaskClassif$new(id="predict_winner",backend=classif_data,target="First_wins")
 
 
 #kknn learner
@@ -44,8 +46,8 @@ prediction_winner_svm$confusion
 
 #split data into train and test
 set.seed(42)
-all_indx <- 1:nrow(complete_data)
-train_indx <- sample.int(nrow(complete_data),round(0.8*nrow(complete_data)))
+all_indx <- 1:nrow(classif_data)
+train_indx <- sample.int(nrow(classif_data),round(0.8*nrow(classif_data)))
 test_indx <- setdiff(all_indx,train_indx)
 
 model_winner_kknn <- learner_kknn$train(task_winner,row_ids = train_indx)
@@ -58,7 +60,7 @@ prediction_winner_kknn_train$score(c(msr("classif.mcc"),msr("classif.acc")))
 prediction_winner_kknn_train$confusion 
 
 
-task_winner_holdout <- TaskClassif$new(id="predict_winner2",backend=complete_data[train_indx,],target="First_wins")
+task_winner_holdout <- TaskClassif$new(id="predict_winner2",backend=classif_data[train_indx,],target="First_wins")
 #CV
 resample <- rsmp(.key="cv")
 cv_results_kknn <- resample(task_winner_holdout, learner_kknn, resample)
@@ -90,9 +92,13 @@ rr_kknn <- resample(task = task_winner_holdout, learner = at_kknn, resampling = 
 #k=23, distance=1 
 #classif.acc=0.9398
 
+#oder Hyeoung dataset
+#k=23, distance=2
+#classif.acc=0.9398 
+
 rr_kknn$aggregate(msr("classif.acc"))
 #0.9392881
-
+#0.9392624 (hyeyoung dataset)
 
 
 #test performance 
@@ -267,6 +273,10 @@ percentage_plot(17,788)# >0
 percentage_plot(144,218) # < 1
 percentage_plot(566,23) # = 0
 
+
+## ROC-Curves of different learners
+
+autoplot(prediction_winner_kknn_test,type="roc")
 
 ######################
 #VS model from keggle

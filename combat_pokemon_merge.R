@@ -60,6 +60,14 @@ type_mapping <- data.frame(type=all_types,index=1:length(all_types))
 combats <- read.csv("combats.csv",sep=",")
 pokemon <- read.csv("pokemon_battle_stats.csv",sep=",")
 
+# missing Name value for pokemon
+pokemon$Name <- as.character(pokemon$Name)
+pokemon[pokemon$Name=="",]$Name <- "Primeape"
+pokemon$Name <- as.factor(pokemon$Name)
+
+#use better format for variable names
+names(pokemon) <- str_replace_all(names(pokemon),fixed("."),"")
+
 #find names
 combats$First_pokemon_name<-sapply(combats$First_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])
 combats$Second_pokemon_name<-sapply(combats$Second_pokemon, function(x) pokemon$Name[match(x, pokemon$X)])

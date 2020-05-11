@@ -273,7 +273,6 @@ param_set <- ParamSet$new(
 terminator <- term("none")
 tuner <- tnr("grid_search")
 learner_tunedglmnet <- AutoTuner$new(learner_glmnet,resample_inner,measures,param_set,terminator,tuner)
-resampling_outer = rsmp("cv",folds=3)
 
 set.seed(1234)
 tic("start training")
@@ -301,7 +300,6 @@ param_set <- ParamSet$new(
 terminator <- term("none")
 tuner <- tnr("grid_search")
 learner_tunednb <- AutoTuner$new(learner_nb,resample_inner,measures,param_set,terminator,tuner)
-resampling_outer = rsmp("cv",folds=3)
 
 set.seed(1234)
 tic("start training")
@@ -331,7 +329,6 @@ param_set <- ParamSet$new(
 terminator <- term("none")
 tuner <- tnr("grid_search")
 learner_tunedkknn <- AutoTuner$new(learner_kknn,resample_inner,measures,param_set,terminator,tuner)
-resampling_outer = rsmp("cv",folds=3)
 
 set.seed(1234)
 tic("start training")

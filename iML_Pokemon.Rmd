@@ -259,12 +259,15 @@ measures <- msrs(c("classif.ce", "classif.acc"))
 # Tuning : setting glmnet hyperparameter and training the tuned learner 
 
 ```{r}
-
+####Glmnet is a package that fits a generalized linear model via penalized maximum likelihood.Gaussian is the default family in glmnet and glmnet provides various options for users to customise the fit,the 3 option chosen here are : 
+####-alpha is for the elastic-net mixing parameter α, with range α∈[0,1]. α=1 is the lasso (default) and α=0 is the ridge.
+####- Value(s)of the penalty parameter lambda at which predictions are required. Default is the entire sequence used to create the model.
+#### eps is the  minimum value of lambda.min.ratio ; factory default= 1.0e-6
 resample_inner <- rsmp("cv",folds=10)
 param_set <- ParamSet$new(
   params = list(ParamDbl$new("alpha",lower=0.8,upper=0.9),
                 ParamDbl$new("s",lower=0.05,upper=0.07),
-                ParamDbl$new("eps",lower = 0.0000000000000004,upper=0.00000005)
+                ParamDbl$new("eps",lower = 0.0000000004,upper=0.00005)
   )
 )
 terminator <- term("none")
@@ -282,6 +285,12 @@ toc()
 # Tuning : setting naive bayes hyperparameter and training the tuned learner 
 
 ```{r}
+#####threshold is the  value by which zero probabilities or probabilities within the epsilon-range corresponding to metric variables are replaced 
+##### Laplace (additive) smoothing handles categorical variables .
+#####eps is the  value that specifies an epsilon-range to replace zero or close to zero probabilities
+by threshold. It applies to metric variables.
+
+
 resample_inner <- rsmp("cv",folds=10)
 param_set <- ParamSet$new(
   params = list(ParamDbl$new("laplace",lower = 0,upper=1),
@@ -445,6 +454,7 @@ tunedxgboost_prediction&score(measures)
 
 # Benchmark
 ```{r}
+####for benchmarking,we first define our new models with the hyperparameters we got after tuning :
 learner_glm_bench<- lrn("classif.glmnet",alpha=0.85,s=0.06,eps=0.0000000045)
 learner_naive_bench<- lrn("classif.naive_bayes",laplace=0.5,threshold=0.5,eps=0.0000000001)
 learner_kknn_bench<- lrn("classif.kknn",k=45, distance=1)

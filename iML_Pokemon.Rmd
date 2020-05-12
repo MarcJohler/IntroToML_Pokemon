@@ -67,7 +67,7 @@ colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_a
 
 # Visit ShinyApp:
 
-https://awesomeds.shinyapps.io/iMLproject/
+[linked phrase](https://awesomeds.shinyapps.io/iMLproject/ "Click here for Pokemon EDA")
 
 # Create New Dataset for Prediction
 # In order to predict winner pokemon, we need to create new pokemon dataset using pokemon information, 

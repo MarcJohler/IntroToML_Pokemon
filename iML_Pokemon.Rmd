@@ -80,7 +80,7 @@ colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_a
 ```{r}
 daten <- combats
 
-#find names
+# find names
 daten$First_pokemon_name<-sapply(daten$First_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
 daten$Second_pokemon_name<-sapply(daten$Second_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
 daten$Winner_name<-sapply(daten$Winner, function(x) pokemon$name[match(x, pokemon$id)])
@@ -107,21 +107,21 @@ daten$sp_defVSsp_def_diff <- daten$First_pokemon_sp_def-daten$Second_pokemon_sp_
 daten$speedVSspeed_diff <- daten$First_pokemon_speed-daten$Second_pokemon_speed
 daten$HPVSHP_diff <- daten$First_pokemon_HP-daten$Second_pokemon_HP
 
-#first Pokemon faster?
+# first Pokemon faster?
 daten$First_pokemon_faster <- sign(daten$speedVSspeed_diff)
 
-#add legendary status
+# add legendary status
 daten$First_pokemon_legendary<-sapply(daten$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
 daten$Second_pokemon_legendary<-sapply(daten$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
 
-#table(daten$First_pokemon_faster,daten$First_wins)
+# table(daten$First_pokemon_faster,daten$First_wins)
 # higher speed is defenitely an advantage for a pokemon in a battle, since it defines which Pokemon may act first 
 # If the speed of two fighting Pokemons is the same, the beginner will be defined randomly
 # This means positive values should have a positive impact on First_wins and negative values a negative impact. A value of zero however should have no impact since the beginner is defined completely random. 
 # In the later process you will see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.  
 # Since this is very unlikely to happen randomly, we assume that there is a data error for those specific observations
 
-#exclude all of those observations with equal speed of both Pokemon
+# exclude all of those observations with equal speed of both Pokemon
 daten$First_wins <- daten$First_wins  %>% as.factor()
 daten <- daten[!daten$First_pokemon_faster == 0,]
 
@@ -257,26 +257,25 @@ xgboost_prediction$score(measures)
 ```{r}
 terminator <- term("evals", n_evals = 100) 
 tuner <- tnr("grid_search")
-resampling <- rsmp("cv", folds = 10)
+resample_inner <- rsmp("cv", folds = 10)
 measures <- msrs(c("classif.ce", "classif.acc"))
 ```
 
 # Tuning : setting glmnet hyperparameter and training the tuned learner 
 
 ```{r}
-####Glmnet is a package that fits a generalized linear model via penalized maximum likelihood.Gaussian is the default family in glmnet and glmnet provides various options for users to customise the fit,the 3 option chosen here are : 
+# Glmnet is a package that fits a generalized linear model via penalized maximum likelihood.Gaussian is the default family in glmnet and glmnet provides various options for users to customise the fit,the 3 option chosen here are : 
 ####-alpha is for the elastic-net mixing parameter α, with range α∈[0,1]. α=1 is the lasso (default) and α=0 is the ridge.
-####- Value(s)of the penalty parameter lambda at which predictions are required. Default is the entire sequence used to create the model.
-#### eps is the  minimum value of lambda.min.ratio ; factory default= 1.0e-6
-resample_inner <- rsmp("cv",folds=10)
+# Value(s)of the penalty parameter lambda at which predictions are required. Default is the entire sequence used to create the model.
+# eps is the  minimum value of lambda.min.ratio ; factory default= 1.0e-6
+
 param_set <- ParamSet$new(
   params = list(ParamDbl$new("alpha",lower=0.8,upper=0.9),
                 ParamDbl$new("s",lower=0.05,upper=0.07),
                 ParamDbl$new("eps",lower = 0.0000000004,upper=0.00005)
   )
 )
-terminator <- term("none")
-tuner <- tnr("grid_search")
+
 learner_tunedglmnet <- AutoTuner$new(learner_glmnet,resample_inner,measures,param_set,terminator,tuner)
 
 set.seed(1234)
@@ -289,21 +288,18 @@ toc()
 # Tuning : setting naive bayes hyperparameter and training the tuned learner 
 
 ```{r}
-#####threshold is the  value by which zero probabilities or probabilities within the epsilon-range corresponding to metric variables are replaced 
-##### Laplace (additive) smoothing handles categorical variables .
-#####eps is the  value that specifies an epsilon-range to replace zero or close to zero probabilities
+# threshold is the  value by which zero probabilities or probabilities within the epsilon-range corresponding to metric variables are replaced 
+# Laplace (additive) smoothing handles categorical variables .
+# eps is the  value that specifies an epsilon-range to replace zero or close to zero probabilities
 by threshold. It applies to metric variables.
 
-
-resample_inner <- rsmp("cv",folds=10)
 param_set <- ParamSet$new(
   params = list(ParamDbl$new("laplace",lower = 0,upper=1),
                 ParamDbl$new("threshold",lower=0.04444,upper=1),
                 ParamDbl$new("eps",lower=0.00000000001,upper = 0.000000001)
   )
 )
-terminator <- term("none")
-tuner <- tnr("grid_search")
+
 learner_tunednb <- AutoTuner$new(learner_nb,resample_inner,measures,param_set,terminator,tuner)
 
 set.seed(1234)
@@ -315,7 +311,7 @@ toc()
 # Tuning : setting kknn hyperparameter and training the tuned learner 
 
 ```{r}
-### for KKNN the main aspects are:
+# for KKNN the main aspects are:
 ## - the distance measure which is used to define similarity (respectively dissimilarity) between the pokemon battles. mlr3-kknn supports only the Minowski-distance with different parameters. We will consider distance-parameter 1,2 and 3.
 # - Minowksi-distance with parameter 1 is the Manhattan-distance
 # - Minowksi-distance with parameter 2 is the Euclidean distance
@@ -325,14 +321,12 @@ toc()
 # - this means the probability for two Pokemon to be selected as competitors in a battle is ~ (1/800) * (1/800) * 2 = 0.000003125
 # - this means we expect 0.000003125 * 50000 = 0.15625 battles between each pair of Pokemons. Since Pokemon fights could be estimated best by looking at the same competitors results in the past, we expect a rather low k to be the best parameter. Since this assumption is based on intuition rather than on scientific proof, we still choose a rather high parameter value limit for k (200). 
 
-resample_inner <- rsmp("cv",folds=10)
 param_set <- ParamSet$new(
   params = list(ParamInt$new("k",lower=1,upper=200),
                 ParamInt$new("distance",lower=1,upper=3)
   )
 )
-terminator <- term("none")
-tuner <- tnr("grid_search")
+
 learner_tunedkknn <- AutoTuner$new(learner_kknn,resample_inner,measures,param_set,terminator,tuner)
 
 set.seed(1234)
@@ -356,7 +350,7 @@ tune_ps <- ParamSet$new(list(
 
 learner_tunedRF <- AutoTuner$new(
   learner = learner_RF,
-  resampling = resampling,
+  resampling = resample_inner,
   measures = measures,
   tune_ps = tune_ps,
   terminator = terminator,
@@ -399,7 +393,7 @@ tune_ps <- ParamSet$new(list(
 
 learner_tunedxgboost <- AutoTuner$new(
   learner = learner_xgboost,
-  resampling = resampling,
+  resampling = resample_inner,
   measures = measures,
   tune_ps = tune_ps,
   terminator = terminator,
@@ -415,26 +409,28 @@ toc()
 
 # Prediction with the tuned learners
 ```{r}
-#glmnet
+# glmnet
 learner_tunedglmnet$tuning_result
 tunedglmnet_prediction = learner_tunedglmnet$predict(task_combat, row_ids = test_set)
-#naive bayes
+
+# naive bayes
 learner_tunednb$tuning_result
 tunednb_prediction = learner_tunednb$predict(task_combat, row_ids = test_set)
-#kknn
+
+# kknn
 learner_tunedkknn$tuning_result
 tunedkknn_prediction = learner_tunedkknn$predict(task_combat, row_ids = test_set)
 
-#random forest (ranger)
+# random forest (ranger)
 learner_tunedRF$tuning_result
 tunedRF_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
 
-
-#xgboost
+# xgboost
 learner_tunedxgboost$tuning_result
 tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
 
 ```
+
 # Compare Prediction Before & After Tuning Models
 ```{r}
 glmnet_prediction$score(measures)

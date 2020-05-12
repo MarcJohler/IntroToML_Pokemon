@@ -1,6 +1,6 @@
 ---
-title: "Pokemon Crossing"
-author: "Hyeyoung Park, Marc Johler"
+title: "iML Project using Pokemon"
+author: "Hyeyoung Park, Marc Johler, xxx"
 date: "`r Sys.Date()`"
 output:
  html_document:

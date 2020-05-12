@@ -1,9 +1,13 @@
 ---
-title: "Machine Learning Project : Pokemon Combat"
-author: "Hyeyoung Park", "Marc Johler", ""
+title: "Pokemon Crossing"
+author: "Hyeyoung Park, Marc Johler"
 date: "`r Sys.Date()`"
-output: pdf_document
-
+output:
+ html_document:
+    fig_width: 10
+    fig_height: 7
+    number_sections : yes
+    code_folding: show
 ---
 
 <center><img src="https://pics.me.me/pokemon-go-protective-mask-pikachu-special-event-70613775.png">

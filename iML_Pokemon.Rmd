@@ -280,6 +280,9 @@ toc()
 
 ### 11.2 Tuning : setting logReg hyperparameter and training the tuned learner
 ```{r tuning logReg, results='hide'}
+###Classification via logistic regression with family set to "binomial".The parameters tuned are the maxit(number of iterations) and epsilon
+
+
 tune_ps <- ParamSet$new(
   params = list(ParamInt$new("classif.log_reg.maxit",lower=10,upper=50),
                 ParamDbl$new("classif.log_reg.epsilon",lower=0.000000001,upper=0.000011)

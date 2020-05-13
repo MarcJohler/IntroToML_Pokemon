@@ -524,9 +524,6 @@ percentage_plot <- function(pokemonA,pokemonB){
   data_for_classification$speedVSspeed_diff <- data_for_classification$First_pokemon_speed-data_for_classification$Second_pokemon_speed
   data_for_classification$HPVSHP_diff <- data_for_classification$First_pokemon_HP-data_for_classification$Second_pokemon_HP
   
-  #first Pokemon faster?
-  data_for_classification$First_pokemon_faster <- sign(data_for_classification$speedVSspeed_diff)
-  
   #add legendary status
   data_for_classification$First_pokemon_legendary<-sapply(data_for_classification$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
   data_for_classification$Second_pokemon_legendary<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
@@ -536,7 +533,7 @@ percentage_plot <- function(pokemonA,pokemonB){
 
   
   #insert final model here. KKNN is placeholder
-  prediction <- learner_tunedRF$predict_newdata(newdata=data_for_classification)
+  prediction <- learner_ranger_bench$predict_newdata(newdata=data_for_classification)
   prob <- prediction$prob[,2] 
   
   

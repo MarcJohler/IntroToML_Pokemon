@@ -1,5 +1,617 @@
 ---
 title: "iML_Pokemon"
+author: "Hyeyoung Park"
+date: "5/13/2020"
+output: pdf_document
+---
+
+<center><img src="https://pics.me.me/pokemon-go-protective-mask-pikachu-special-event-70613775.png">
+</center>
+
+```{r setup}
+options(width=100)
+knitr::opts_chunk$set(out.width='1000px',dpi=200, message=FALSE,warning=FALSE)
+```
+
+```{r }
+#load packages 
+library(tictoc)
+library(formattable)
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(GGally)
+library(plotly) 
+library(gridExtra)
+library(corrplot)
+library(caret)
+library(ggthemes)
+library(RColorBrewer)
+library(fmsb)
+library(rpart.plot)
+library(ROCR)
+library(mlr3learners.gbm)
+library(ranger)
+library(mlr3)
+library(mlr3learners)
+library(mlr3measures)
+library(mlr3pipelines)
+library(mlr3tuning)
+library(mlr3filters)
+library(mlbench)
+library(mlr3misc)
+library(caret)
+library(mlr3viz)
+library(corrplot)
+library(mlr3verse)
+```
+
+# read Datasets : original Datasets from Kaggle (address)
+# pokemon800.csv : Information about each pokemon 
+# combats.csv : first pokemon ID, second pokemon ID, winner ID 
+
+```{r}
+pokemon <-read.csv("pokemon800.csv", header = TRUE, stringsAsFactors=TRUE)
+combats <-read.csv("combats.csv", header = TRUE, stringsAsFactors = TRUE)
+```
+
+# Data Preparation
+```{r}
+#use better format for variable names
+colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_attack","sp_defense","speed","generation","is_legendary")
+```
+
+# Descriptive Statistik : EDA Pokomon
+
+# Visit ShinyApp:
+
+[linked phrase](https://awesomeds.shinyapps.io/iMLproject/ "Click here for Pokemon EDA")
+
+# Create New Dataset for Prediction
+# In order to predict winner pokemon, we need to create new pokemon dataset using pokemon information, 
+# as dataset "combats" includes only the information of pokemon IDs. 
+
+```{r create new dataset for prediction}
+daten <- combats
+#find names
+daten$First_pokemon_name<-sapply(daten$First_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
+daten$Second_pokemon_name<-sapply(daten$Second_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
+daten$Winner_name<-sapply(daten$Winner, function(x) pokemon$name[match(x, pokemon$id)])
+daten$First_wins <- daten$First_pokemon == daten$Winner
+# calculate stat differences
+daten$First_pokemon_attack<-sapply(daten$First_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+daten$Second_pokemon_attack<-sapply(daten$Second_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+daten$First_pokemon_hp<-sapply(daten$First_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+daten$Second_pokemon_hp<-sapply(daten$Second_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+daten$First_pokemon_defense<-sapply(daten$First_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+daten$Second_pokemon_defense<-sapply(daten$Second_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+daten$First_pokemon_sp_atk<-sapply(daten$First_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+daten$Second_pokemon_sp_atk<-sapply(daten$Second_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+daten$First_pokemon_sp_def<-sapply(daten$First_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
+daten$Second_pokemon_sp_def<-sapply(daten$Second_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
+daten$First_pokemon_speed<-sapply(daten$First_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+daten$Second_pokemon_speed<-sapply(daten$Second_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+daten$attackVSattack_diff <- daten$First_pokemon_attack-daten$Second_pokemon_attack
+daten$defenseVSdefense_diff <- daten$First_pokemon_defense-daten$Second_pokemon_defense
+daten$sp_atkVSsp_atk_diff <- daten$First_pokemon_sp_atk-daten$Second_pokemon_sp_atk
+daten$sp_defVSsp_def_diff <- daten$First_pokemon_sp_def-daten$Second_pokemon_sp_def
+daten$speedVSspeed_diff <- daten$First_pokemon_speed-daten$Second_pokemon_speed
+daten$HPVSHP_diff <- daten$First_pokemon_hp-daten$Second_pokemon_hp
+#first Pokemon faster?
+daten$First_pokemon_faster <- sign(daten$speedVSspeed_diff)
+#add legendary status
+daten$First_pokemon_legendary<-sapply(daten$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+daten$Second_pokemon_legendary<-sapply(daten$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+#table(daten$First_pokemon_faster,daten$First_wins)
+# higher speed is defenitely an advantage for a pokemon in a battle, since it defines which Pokemon may act first 
+# If the speed of two fighting Pokemons is the same, the beginner will be defined randomly
+# This means positive values should have a positive impact on First_wins and negative values a negative impact. A value of zero however should have no impact since the beginner is defined completely random. 
+# In the later process you will see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.  
+# Since this is very unlikely to happen randomly, we assume that there is a data error for those specific observations
+#exclude all of those observations with equal speed of both Pokemon
+daten$First_wins <- daten$First_wins  %>% as.factor()
+daten <- daten[!daten$First_pokemon_faster == 0,]
+
+# convert the logical variables into factor
+for(i in 1:ncol(daten)){
+  if(class(daten[,i]) == "logical"){
+    daten[,i] <- as.factor(daten[,i])
+  }
+}
+```
+
+# Select useful variables and make temporal task for ML project 
+# Task : Binary Classification 
+# Target Value to predict : Is first pokemon the winner?  (if not, second pokemon wins of course :)) True/False
+
+```{r temporal task}
+Backend <- daten %>% dplyr::select(c("attackVSattack_diff", 
+                                     "defenseVSdefense_diff",
+                                     "sp_atkVSsp_atk_diff",
+                                     "sp_defVSsp_def_diff",     
+                                     "speedVSspeed_diff",
+                                     "HPVSHP_diff",
+                                     "First_pokemon_legendary", 
+                                     "Second_pokemon_legendary",
+                                     "First_wins"))
+
+task_combat = TaskClassif$new(id = "task_combat", backend = Backend, target = "First_wins")
+```
+
+# Feature Selection using the package "mlr3filter" 
+# 1. based on information_gain :- entropy-based feature evaluation 
+#                               - for tree model : 
+#                                 information gain decides which feature should be used to split the data 
+                            
+# 2. based on importance : 
+
+```{r feature selection using information gain}
+filter = flt("information_gain")  
+filter$calculate(task_combat)
+formattable(as.data.table(filter), list(score = color_tile("transparent", "lightpink")))
+```
+* According to the result from mlr3filter, we select: 
+1. speedVSspeed_diff 
+2. attackVSattack_diff 
+3. sp_atkVSsp_atk_diff 
+4. sp_defVSsp_def_diff 
+5. HPVSHP_diff
+
+# Reset Task with the selected Features
+
+```{r update task}
+Backend <- daten %>% dplyr::select(speedVSspeed_diff,
+                                   attackVSattack_diff,
+                                   sp_atkVSsp_atk_diff,
+                                   sp_defVSsp_def_diff,
+                                   HPVSHP_diff,
+                                   First_wins)
+
+task_combat = TaskClassif$new(id = "task_combat", backend = Backend, target = "First_wins")
+```
+
+# Choose your favorite Learners 
+```{r choose learners}
+learner_glmnet <- mlr3::lrn("classif.glmnet", predict_type = "prob")
+learner_log <- mlr3::lrn("classif.log_reg", predict_type = "prob")
+learner_nb <- mlr3::lrn("classif.naive_bayes", predict_type = "prob")
+learner_kknn <- mlr3::lrn("classif.kknn", predict_type = "prob")
+learner_RF <- mlr3::lrn("classif.ranger", predict_type = "prob")
+learner_xgboost <- mlr3::lrn("classif.xgboost", predict_type = "prob")
+```
+
+# One Hot Encoding  using pipeline
+
+```{r one hot encoding}
+fencoder = po("encode", method = "treatment",
+              affect_columns = selector_type("factor"))
+fencoder$train(list(task_combat))
+
+pipe = fencoder %>>% learner_glmnet
+learner_glmnet = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_log
+learner_log = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_nb
+learner_nb = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_kknn
+learner_kknn = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_RF
+learner_RF = GraphLearner$new(pipe)
+
+pipe = fencoder %>>% learner_xgboost
+learner_xgboost = GraphLearner$new(pipe)
+```
+
+# Split train /test (saved as index)
+```{r}
+set.seed(1234)
+train_set = sample(task_combat$nrow, 0.8 * task_combat$nrow)
+test_set = setdiff(seq_len(task_combat$nrow), train_set)
+```
+
+# Training chosen learners
+```{r results = 'hide}
+set.seed(1234)
+learner_glmnet$train(task_combat, row_ids = train_set)
+learner_log$train(task_combat, row_ids = train_set)
+learner_nb$train(task_combat, row_ids = train_set)
+learner_kknn$train(task_combat, row_ids = train_set)
+learner_RF$train(task_combat, row_ids = train_set)
+learner_xgboost$train(task_combat, row_ids = train_set)
+```
+
+# Prediction  
+```{r prediction}
+glmnet_prediction = learner_glmnet$predict(task_combat, row_ids = test_set)
+log_prediction = learner_log$predict(task_combat, row_ids = test_set)
+nb_prediction = learner_nb$predict(task_combat, row_ids = test_set)
+kknn_prediction = learner_kknn$predict(task_combat, row_ids = test_set)
+RF_prediction = learner_RF$predict(task_combat, row_ids = test_set)
+xgboost_prediction = learner_xgboost$predict(task_combat, row_ids = test_set)
+
+measures <- msrs(c("classif.ce", "classif.acc"))
+
+print("glmnet prediction performances :")
+glmnet_prediction$score(measures)
+print("logreg prediction performances :")
+log_prediction$score(measures)
+print("naive bayes prediction performances :")
+nb_prediction$score(measures)
+print("kknn prediction performances :")
+kknn_prediction$score(measures)
+print("ragner(RF) prediction performances :")
+RF_prediction$score(measures)
+print("xgboost prediction performances :")
+xgboost_prediction$score(measures)
+```
+
+# Tuning : 
+
+```{r set tuning functions arguments}
+terminator <- term("evals", n_evals = 100) 
+tuner <- tnr("grid_search")
+resample_inner <- rsmp("cv", folds = 10)
+measures <- msrs(c("classif.ce", "classif.acc"))
+```
+
+# Tuning : setting glmnet hyperparameter and training the tuned learner 
+
+```{r tuning glmnet, results='hide'}
+# Glmnet is a package that fits a generalized linear model via penalized maximum likelihood.Gaussian is the default family in glmnet and glmnet provides various options for users to customise the fit,the 3 option chosen here are : 
+# alpha is for the elastic-net mixing parameter α, with range α∈[0,1]. α=1 is the lasso (default) and α=0 is the ridge.
+# Value(s)of the penalty parameter lambda at which predictions are required. Default is the entire sequence used to create the model.
+# eps is the  minimum value of lambda.min.ratio ; factory default= 1.0e-6
+
+tune_ps <- ParamSet$new(
+  params = list(ParamDbl$new("classif.glmnet.alpha",lower=0.8,upper=0.9),
+                ParamDbl$new("classif.glmnet.s",lower=0.05,upper=0.07),
+                ParamDbl$new("classif.glmnet.eps",lower = 0.0000000004,upper=0.00005)
+  )
+)
+
+learner_tunedglmnet <- AutoTuner$new(
+  learner = learner_glmnet,
+  resampling = resample_inner,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner)
+
+set.seed(1234)
+tic("start training")
+learner_tunedglmnet$train(task_combat, row_ids = train_set)
+toc()
+
+```
+
+
+```{r}
+tune_ps <- ParamSet$new(
+  params = list(ParamInt$new("classif.log_reg.maxit",lower=10,upper=50),
+                ParamDbl$new("classif.log_reg.epsilon",lower=0.000000001,upper=0.000011)
+  )
+)
+
+learner_tunedlog <- AutoTuner$new(learner_log,resample_inner,measures,tune_ps, terminator, tuner)
+
+set.seed(1234)
+tic("start training")
+learner_tunedlog$train(task_combat, row_ids = train_set)
+toc()
+```
+
+
+# Tuning : setting naive bayes hyperparameter and training the tuned learner 
+
+```{r tuning naive bayes, results='hide'}
+# Threshold is the value by which zero probabilities or probabilities within the epsilon-range corresponding to metric variables are replaced 
+# Laplace (additive) smoothing handles categorical variables .
+# eps is the  value that specifies an epsilon-range to replace zero or close to zero probabilities by threshold. It applies to metric variables.
+
+tune_ps <- ParamSet$new(
+  params = list(ParamDbl$new("classif.naive_bayes.laplace",lower = 0,upper=1),
+                ParamDbl$new("classif.naive_bayes.threshold",lower=0.04444,upper=1),
+                ParamDbl$new("classif.naive_bayes.eps",lower=0.00000000001,upper = 0.000000001)
+  )
+)
+
+learner_tunednb <- AutoTuner$new(
+  learner = learner_nb,
+  resampling = resample_inner,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner)
+
+set.seed(1234)
+tic("start training")
+learner_tunednb$train(task_combat, row_ids = train_set)
+toc()
+```
+
+# Tuning : setting kknn hyperparameter and training the tuned learner 
+
+```{r tuning kknn, results = 'hide'}
+# for KKNN the main aspects are:
+# - the distance measure which is used to define similarity (respectively dissimilarity) between the pokemon battles. mlr3-kknn supports only the Minowski-distance with different parameters. We will consider distance-parameter 1,2 and 3.
+# - Minowksi-distance with parameter 1 is the Manhattan-distance
+# - Minowksi-distance with parameter 2 is the Euclidean distance
+# - Minowski-distance with parameter 3 is not so commonly used, but could also lead to better results in specific cases
+## - the number of closest neighbors considered to predict an observation (k)
+# - we have < 50000 observations in the data set and ~ 800 different Pokemon which could be used in a battle. 
+# - this means the probability for two Pokemon to be selected as competitors in a battle is ~ (1/800) * (1/800) * 2 = 0.000003125
+# - this means we expect 0.000003125 * 50000 = 0.15625 battles between each pair of Pokemons. Since Pokemon fights could be estimated best by looking at the same competitors results in the past, we expect a rather low k to be the best parameter. Since this assumption is based on intuition rather than on scientific proof, we still choose a rather high parameter value limit for k (200). 
+
+tune_ps <- ParamSet$new(
+  params = list(ParamInt$new("classif.kknn.k",lower=1,upper=200),
+                ParamInt$new("classif.kknn.distance",lower=1,upper=3)
+  )
+)
+
+learner_tunedkknn <- AutoTuner$new(
+  learner = learner_kknn,
+  resampling = resample_inner,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner)
+
+set.seed(1234)
+tic("start training")
+learner_tunedkknn$train(task_combat, row_ids = train_set)
+toc()
+```
+
+# Tuning : setting ranger hyperparameter and training the tuned learner 
+
+```{r tuning RF, results = 'hide'}
+tune_ps <- ParamSet$new(list(
+  ParamInt$new("classif.ranger.num.trees", lower = 10, upper = 300), 
+  #ParamFct$new("classif.ranger.importance", levels = c('none','impurity','impurity_corrected','permutation')),  #ecommended "impurity"
+  #ParamFct$new("classif.ranger.splitrule", levels = c('variance','extratrees','maxstat')), # Gini (but here no gini? #option: variance,extratrees,maxstat)
+  ParamInt$new("classif.ranger.min.node.size", lower = 1, upper = 10), 
+  #ParamInt$new("classif.ranger.num.random.splits", lower = 1, upper = 10, default = 1)
+  ParamInt$new("classif.ranger.mtry", lower = 1, upper = 1) 
+  # if you change mtry, mse increases here, hence default values got used. 
+  #ParamDbl$new("classif.ranger.alpha", lower = 0.3, upper =0.8, default = 0.5) 
+))
+
+learner_tunedRF <- AutoTuner$new(
+  learner = learner_RF,
+  resampling = resample_inner,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner
+)
+
+set.seed(1234)
+tic("start training")
+learner_tunedRF$train(task_combat, row_ids = train_set)
+toc()
+```
+
+# Tuning : setting xgboost hyperparameter and training the tuned learner 
+
+```{r tuning xgboost, results='hide'}
+tune_ps <- ParamSet$new(list(
+  ParamDbl$new("classif.xgboost.eta", lower = 0.3, upper = 0.5), # default 0.3
+  # eta : learning rate.
+  # eta increasing -> training error decreases faster in the training
+  # Step size shrinkage used in update to prevents overfitting. After each boosting step, 
+  # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process      # more conservative.
+  ParamDbl$new("classif.xgboost.gamma", lower = 0, upper = 0), # default 0 gamma = 0 is the best here
+  # gamma : Minimum loss reduction required to make a further partition on a leaf node of the tree. 
+  # gamma increasing -> training error decreases slower in the training
+  # The larger gamma is, the more conservative the algorithm will be.
+  ParamInt$new("classif.xgboost.max_depth", lower = 15, upper = 20), # default 6
+  # Maximum depth of a tree. Increasing this value will make the model more complex and more likely to overfit. 
+  # 0 is only accepted in lossguided growing policy when tree_method is set as hist and it indicates no limit on depth. 
+  # Beware that XGBoost aggressively consumes memory when training a deep tree.
+  ParamDbl$new("classif.xgboost.min_child_weight", lower = 0.01, upper= 0.01),#default 1
+  #min_child_weight : Minimum sum of instance weight (hessian) needed in a child. 
+  #If the tree partition step results in a leaf node with the sum of instance weight less than min_child_weight, 
+  #then the building process will give up further partitioning. In linear regression task, 
+  #this simply corresponds to minimum number of instances needed to be in each node. 
+  #The larger min_child_weight is, the more conservative the algorithm will be.
+  #Too high values can lead to under-fitting hence, it should be tuned using CV.
+  ParamInt$new("classif.xgboost.nrounds", lower = 30, upper = 100) # Number of Tree : more trees less train error
+  # If other hyperparameters would have been tuned well enough, nrounds needs to be big. if it increases, it could cause waisting running time.
+))
+
+learner_tunedxgboost <- AutoTuner$new(
+  learner = learner_xgboost,
+  resampling = resample_inner,
+  measures = measures,
+  tune_ps = tune_ps,
+  terminator = terminator,
+  tuner = tuner
+)
+
+set.seed(1234)
+tic("start training")
+learner_tunedxgboost$train(task_combat, row_ids = train_set)
+toc()
+
+```
+
+# Prediction with the tuned learners
+```{r prediction after tuning}
+#glmnet
+learner_tunedglmnet$tuning_result
+tunedglmnet_prediction = learner_tunedglmnet$predict(task_combat, row_ids = test_set)
+
+#log_reg
+learner_tunedlog$tuning_result
+tunedlog_prediction = learner_tunedlog$predict(task_combat, row_ids = test_set)
+
+#naive bayes
+learner_tunednb$tuning_result
+tunednb_prediction = learner_tunednb$predict(task_combat, row_ids = test_set)
+
+#kknn
+learner_tunedkknn$tuning_result
+tunedkknn_prediction = learner_tunedkknn$predict(task_combat, row_ids = test_set)
+
+#random forest (ranger)
+learner_tunedRF$tuning_result
+tunedRF_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
+
+#xgboost
+learner_tunedxgboost$tuning_result
+tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = test_set)
+
+```
+
+# Compare Prediction Before & After Tuning Models
+```{r compare prediction}
+# tuned glmnet
+glmnet_prediction$score(measures)
+tunedglmnet_prediction&score(measures)
+
+# tuned log_reg
+log_prediction$score(measures)
+tunedlog_prediction&score(measures)
+
+# tuned naive bayes
+nb_prediction$score(measures)
+tunednb_prediction&score(measures)
+
+# tuned KKNN
+kknn_prediction$score(measures)
+tunedkknn_prediction&score(measures)
+
+# tuned ranger (RF)
+RF_prediction$score(measures)
+tunedRF_prediction&score(measures)
+
+# tuned xgboost
+xgboost_prediction$score(measures)
+tunedxgboost_prediction&score(measures)
+```
+
+# Benchmark
+```{r benchmark}
+# for benchmarking,we first define our new models with the hyperparameters we got after tuning :
+learner_glm_bench<- lrn("classif.glmnet",alpha=0.85,s=0.06,eps=0.0000000045, predict_type = "prob")
+learner_log_bench<-lrn("classif.log_reg",maxit=20,epsilon=0.00000001, predict_type = "prob")
+learner_naive_bench<- lrn("classif.naive_bayes",laplace=0.5,threshold=0.5,eps=0.0000000001, predict_type = "prob")
+learner_kknn_bench<- lrn("classif.kknn",k=45, distance=1, predict_type = "prob")
+learner_ranger_bench <-lrn("classif.ranger",num.trees = 203, min.node.size = 2, mtry=1, predict_type = "prob")
+learner_xg_bench <-lrn("classif.xgboost",eta = 0.4777778, gamma = 0, max_depth = 15, min_child_weight =0.01, nrounds = 30 ,predict_type = "prob")
+
+learners<-list(learner_glm_bench,learner_log_bench, learner_naive_bench,learner_kknn_bench,learner_ranger_bench,learner_xg_bench)
+
+design<-benchmark_grid(tasks = task_combat,learners = learners,resamplings =rsmp("cv", folds = 3))
+
+bmr <-benchmark(design)
+```
+
+# Benchmark Result
+```{r benchmark Viz}
+# Benchmark Boxplot
+autoplot(bmr,measure = msr("classif.acc"))
+```
+
+
+# Combat 2 Pokemons
+```{r combat pokemon}
+# choose your two pokemons and predict the winner using the Benchmark Best Learner
+# Visulisation from Marc : guage graph 
+# input are pokemon id numbers from the pokemon data set
+pokemonA <- 123
+pokemonB <- 321
+
+learner_ranger_bench$train(task_combat, row_ids = train_set)
+#remember_prob remembers last probability of a battle prediction. This just has to be set before the first function use one time
+remember_prob <- as.double(NA)
+
+#this function runs the prediction for two fighting pokemon and then visualizes the probability for pokemon A to win. 
+percentage_plot <- function(pokemonA,pokemonB){
+  data_for_classification <- data.frame(row.names=1)
+  data_for_classification$First_pokemon <- pokemonA
+  data_for_classification$Second_pokemon <- pokemonB
+  
+  # calculate stat differences
+  data_for_classification$First_pokemon_attack<-sapply(data_for_classification$First_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_attack<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$attack[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_HP<-sapply(data_for_classification$First_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_HP<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$hp[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_defense<-sapply(data_for_classification$First_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_defense<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$defense[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_sp_atk<-sapply(data_for_classification$First_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_sp_atk<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_sp_def<-sapply(data_for_classification$First_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_sp_def<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_def[match(x, pokemon$id)])
+  data_for_classification$First_pokemon_speed<-sapply(data_for_classification$First_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_speed<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
+  
+  data_for_classification$attackVSattack_diff <- data_for_classification$First_pokemon_attack-data_for_classification$Second_pokemon_attack
+  data_for_classification$defenseVSdefense_diff <- data_for_classification$First_pokemon_defense-data_for_classification$Second_pokemon_defense
+  data_for_classification$sp_atkVSsp_atk_diff <- data_for_classification$First_pokemon_sp_atk-data_for_classification$Second_pokemon_sp_atk
+  data_for_classification$sp_defVSsp_def_diff <- data_for_classification$First_pokemon_sp_def-data_for_classification$Second_pokemon_sp_def
+  data_for_classification$speedVSspeed_diff <- data_for_classification$First_pokemon_speed-data_for_classification$Second_pokemon_speed
+  data_for_classification$HPVSHP_diff <- data_for_classification$First_pokemon_HP-data_for_classification$Second_pokemon_HP
+  
+  #first Pokemon faster?
+  data_for_classification$First_pokemon_faster <- sign(data_for_classification$speedVSspeed_diff)
+  
+  #add legendary status
+  data_for_classification$First_pokemon_legendary<-sapply(data_for_classification$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+  data_for_classification$Second_pokemon_legendary<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
+  
+  #select the variables you need for your specific model
+  data_for_classification <- data_for_classification %>% dplyr::select(speedVSspeed_diff, attackVSattack_diff, defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,HPVSHP_diff)
+  
+  #insert final model here. "ranger" is placeholder
+  prediction <- learner_ranger_bench$predict_newdata(newdata=data_for_classification)
+  prob <- prediction$prob[,2] 
+  
+  
+  fig <- plot_ly(
+    type = "indicator",
+    mode = "gauge+number+delta",
+    value = prob,
+    title = list(text = "Probability for First Pokemon to win", font = list(size = 30)),
+    delta = list(reference = remember_prob, increasing = list(color = "lightgreen"),decreasing=list(color="red")),
+    gauge = list(
+      axis = list(range = list(0, 1), tickwidth = 1, tickcolor = "black"),
+      bar = list(color = "black"),
+      bgcolor = "white",
+      borderwidth = 2,
+      bordercolor = "gray",
+      steps = list(
+        list(range = c(0, 0.2), color = "palegrey"),
+        list(range = c(0.2,0.4), color = "palecyan"),
+        list(range = c(0.4,0.6), color = "paleblue"),
+        list(range = c(0.6,0.8), color = "lightblue"),                                   
+        list(range = c(0.8,1), color = "blue")))) 
+  fig <- fig %>%
+    layout(
+      margin = list(l=20,r=30),
+      paper_bgcolor = "lavender",
+      font = list(color = "black", family = "Arial",size=20))
+  
+  remember_prob <<- prob[1] %>% as.numeric()
+  fig
+}
+```
+
+
+
+
+
+
+
+
+---
+title: "iML_Pokemon"
 author: "Hyeyoung Park", "Marc Johler", "Bechir Ghannouchi"
 date: "5/13/2020"
 output: pdf_document

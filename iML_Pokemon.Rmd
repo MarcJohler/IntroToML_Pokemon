@@ -1,6 +1,6 @@
 ---
 title: "iML_Pokemon"
-author: "Hyeyoung Park"
+author: "Hyeyoung Park, Marc Johler, Bechir Ghannouchi"
 date: "5/13/2020"
 output: pdf_document
 ---
@@ -76,10 +76,7 @@ colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense","sp_a
 ```{r create new dataset for prediction}
 daten <- combats
 
-#find names
-daten$First_pokemon_name<-sapply(daten$First_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
-daten$Second_pokemon_name<-sapply(daten$Second_pokemon, function(x) pokemon$name[match(x, pokemon$id)])
-daten$Winner_name<-sapply(daten$Winner, function(x) pokemon$name[match(x, pokemon$id)])
+# binary label for the winner variable
 daten$First_wins <- daten$First_pokemon == daten$Winner
 
 # calculate stat differences
@@ -114,7 +111,8 @@ daten$Second_pokemon_legendary<-sapply(daten$Second_pokemon, function(x) pokemon
 # higher speed is defenitely an advantage for a pokemon in a battle, since it defines which Pokemon may act first 
 # If the speed of two fighting Pokemons is the same, the beginner will be defined randomly
 # This means positive values should have a positive impact on First_wins and negative values a negative impact. A value of zero however should have no impact since the beginner is defined completely random. 
-# In the later process you will see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.  
+# Here you can see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.  
+table(daten$First_pokemon_faster,daten$First_wins)
 # Since this is very unlikely to happen randomly, we assume that there is a data error for those specific observations
 
 #exclude all of those observations with equal speed of both Pokemon
@@ -491,8 +489,6 @@ autoplot(bmr,measure = msr("classif.acc"))
 # Combat 2 Pokemon
 ```{r combat pokemon}
 # choose your two pokemons and predict the winner using the Benchmark Best Learner
-# Visulisation from Marc : guage graph 
-
 # input are pokemon id numbers from the pokemon data set
 pokemonA <- 122
 pokemonB <- 457
@@ -520,6 +516,7 @@ percentage_plot <- function(pokemonA,pokemonB){
   data_for_classification$First_pokemon_speed<-sapply(data_for_classification$First_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
   data_for_classification$Second_pokemon_speed<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
   
+  
   data_for_classification$attackVSattack_diff <- data_for_classification$First_pokemon_attack-data_for_classification$Second_pokemon_attack
   data_for_classification$defenseVSdefense_diff <- data_for_classification$First_pokemon_defense-data_for_classification$Second_pokemon_defense
   data_for_classification$sp_atkVSsp_atk_diff <- data_for_classification$First_pokemon_sp_atk-data_for_classification$Second_pokemon_sp_atk
@@ -535,9 +532,10 @@ percentage_plot <- function(pokemonA,pokemonB){
   data_for_classification$Second_pokemon_legendary<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
   
   #select the variables you need for your specific model
-  data_for_classification <- data_for_classification %>% dplyr::select(attackVSattack_diff,defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,HPVSHP_diff,First_pokemon_faster)
+  data_for_classification <- data_for_classification %>% dplyr::select(attackVSattack_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,HPVSHP_diff,speedVSspeed_diff)
+
   
-  #insert final model here. "ranger" is placeholder
+  #insert final model here. KKNN is placeholder
   prediction <- learner_tunedRF$predict_newdata(newdata=data_for_classification)
   prob <- prediction$prob[,2] 
   
@@ -545,9 +543,11 @@ percentage_plot <- function(pokemonA,pokemonB){
   fig <- plot_ly(
     type = "indicator",
     mode = "gauge+number+delta",
+    width=700,
+    height=550,
     value = prob,
     title = list(text = "Probability for First Pokemon to win", font = list(size = 30)),
-    delta = list(reference = remember_prob, increasing = list(color = "lightgreen"),decreasing=list(color="red")),
+    delta = list(reference = remember_prob, increasing = list(color = "darkgreen"),decreasing=list(color="red")),
     gauge = list(
       axis = list(range = list(0, 1), tickwidth = 1, tickcolor = "black"),
       bar = list(color = "black"),
@@ -562,7 +562,8 @@ percentage_plot <- function(pokemonA,pokemonB){
         list(range = c(0.8,1), color = "darkgreen")))) 
   fig <- fig %>%
     layout(
-      margin = list(l=20,r=30),
+      autosize=TRUE,
+      margin = list(l=30,r=30,t=5,b=5),
       paper_bgcolor = "lavender",
       font = list(color = "black", family = "Arial",size=20))
   

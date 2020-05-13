@@ -548,7 +548,7 @@ percentage_plot <- function(pokemonA,pokemonB){
   data_for_classification$First_pokemon_sp_atk<-sapply(data_for_classification$First_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
   data_for_classification$Second_pokemon_sp_atk<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_attack[match(x, pokemon$id)])
   data_for_classification$First_pokemon_sp_def<-sapply(data_for_classification$First_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
-  data_for_classification$Second_pokemon_sp_def<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_def[match(x, pokemon$id)])
+  data_for_classification$Second_pokemon_sp_def<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$sp_defense[match(x, pokemon$id)])
   data_for_classification$First_pokemon_speed<-sapply(data_for_classification$First_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
   data_for_classification$Second_pokemon_speed<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$speed[match(x, pokemon$id)])
   

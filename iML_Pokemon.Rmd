@@ -280,9 +280,6 @@ toc()
 
 ### 11.2 Tuning : setting logReg hyperparameter and training the tuned learner
 ```{r tuning logReg, results='hide'}
-###Classification via logistic regression with family set to "binomial".The parameters tuned are the maxit(number of iterations) and epsilon
-
-
 tune_ps <- ParamSet$new(
   params = list(ParamInt$new("classif.log_reg.maxit",lower=10,upper=50),
                 ParamDbl$new("classif.log_reg.epsilon",lower=0.000000001,upper=0.000011)
@@ -509,9 +506,11 @@ bmr <-benchmark(design)
 
 ### 14.1 Benchmark Result
 ```{r benchmark Viz, echo=FALSE}
-# Benchmark Boxplot
+# Result: 
 print(bmr$aggregate(measures))
+# Boxplot for comparing Accuracy :
 autoplot(bmr,measure = msr("classif.acc")) + theme_bw() + theme(axis.text.x = element_text(angle = 45, hjust =1))
+# ROC :
 autoplot(bmr$clone()$filter(task_id = "task_combat"), type = "roc") 
 ```
 

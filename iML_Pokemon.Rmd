@@ -49,9 +49,9 @@ library(mlr3verse)
 ```
 
 ## 2. Read Datasets 
-original Datasets from Kaggle: [Here](https://www.kaggle.com/terminus7/pokemon-challenge#combats.csv) 
-pokemon800.csv : Information about each pokemon 
-combats.csv : first pokemon ID, second pokemon ID, winner ID 
+original datasets from Kaggle: [Here](https://www.kaggle.com/terminus7/pokemon-challenge#combats.csv) 
+pokemon800.csv : Information about each Pokemon 
+combats.csv : first Pokemon ID, second Pokemon ID, winner ID 
 
 ```{r}
 pokemon <-read.csv("pokemon800.csv", header = TRUE, stringsAsFactors=TRUE) #read dataset
@@ -61,15 +61,15 @@ colnames(pokemon)<-c("id","name","type_1","type_2","hp","attack","defense",
 pokemon$id <- as.character(pokemon$id) 
 ```
 
-## 3. Descriptive Statistik : EDA Pokomon
+## 3. Descriptive Statistics : EDA Pokemon
 
 Visit ShinyApp:
 
 [Visit My Shiny App for Pokemon EDA](https://awesomeds.shinyapps.io/iMLproject/)
 
-## Create New Dataset for Prediction
-In order to predict winner pokemon, we need to create new pokemon dataset using pokemon information, 
-as dataset "combats" includes only the information of pokemon IDs. 
+## Create new dataset for prediction
+In order to predict winner Pokemon, we need to create new Pokemon dataset using Pokemon information, 
+as dataset "combats" includes only the information of Pokemon IDs. 
 
 ```{r create new dataset for prediction}
 daten <- combats
@@ -102,11 +102,11 @@ daten$First_pokemon_faster <- sign(daten$speedVSspeed_diff)
 #add legendary status
 daten$First_pokemon_legendary<-sapply(daten$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
 daten$Second_pokemon_legendary<-sapply(daten$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
-#table(daten$First_pokemon_faster,daten$First_wins)
-# higher speed is defenitely an advantage for a pokemon in a battle, since it defines which Pokemon may act first 
+# higher speed is defenitely an advantage for a Pokemon in a battle, since it defines which Pokemon may act first 
 # If the speed of two fighting Pokemons is the same, the beginner will be defined randomly
 # This means positive values should have a positive impact on First_wins and negative values a negative impact. A value of zero however should have no impact since the beginner is defined completely random. 
-# In the later process you will see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.  
+# Here you can see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.
+table(daten$Firste_pokemon_faster,First_wins)
 # Since this is very unlikely to happen randomly, we assume that there is a data error for those specific observations
 #exclude all of those observations with equal speed of both Pokemon
 daten$First_wins <- daten$First_wins  %>% as.factor()
@@ -122,7 +122,7 @@ for(i in 1:ncol(daten)){
 
 Select useful variables and make temporal task for ML project 
 Task : Binary Classification 
-Target Value to predict : Is first pokemon the winner?  (if not, second pokemon wins of course :)) True/False
+Target value to predict : Is first Pokemon the winner?  (if not, second Pokemon wins of course :)) True/False
 
 ```{r temporal task}
 Backend <- daten %>% dplyr::select(c("attackVSattack_diff", 
@@ -138,7 +138,7 @@ Backend <- daten %>% dplyr::select(c("attackVSattack_diff",
 task_combat = TaskClassif$new(id = "task_combat", backend = Backend, target = "First_wins")
 ```
 
-## 4. Feature Selection using the package "mlr3filter" 
+## 4. Feature selection using the package "mlr3filter" 
 #### based on information_gain :- entropy-based feature evaluation 
                             - for tree model : 
                               information gain decides which feature should be used to split the data
@@ -149,7 +149,7 @@ filter$calculate(task_combat)
 formattable(as.data.table(filter), list(score = color_tile("transparent", "lightpink")))
 ```
 
-## 5. Reset Task with the selected Features
+## 5. Reset task with the selected features
 ```{r update task}
 Backend <- daten %>% dplyr::select(speedVSspeed_diff,
                                    attackVSattack_diff,
@@ -161,7 +161,7 @@ Backend <- daten %>% dplyr::select(speedVSspeed_diff,
 task_combat = TaskClassif$new(id = "task_combat", backend = Backend, target = "First_wins")
 ```
 
-## 6.Choose your favorite Learners 
+## 6.Choose your favorite learners 
 ```{r}
 learner_glmnet <- mlr3::lrn("classif.glmnet", predict_type = "prob")
 learner_log <- mlr3::lrn("classif.log_reg", predict_type = "prob")
@@ -171,7 +171,7 @@ learner_RF <- mlr3::lrn("classif.ranger", predict_type = "prob")
 learner_xgboost <- mlr3::lrn("classif.xgboost", predict_type = "prob")
 ```
 
-## 7.One Hot Encoding using pipeline
+## 7.One hot encoding using pipeline
 ```{r}
 fencoder = po("encode", method = "treatment",
               affect_columns = selector_type("factor"))
@@ -251,7 +251,7 @@ measures <- msrs(c("classif.ce", "classif.acc"))
 ### 11.1 Tuning : setting glmnet hyperparameter and training the tuned learner 
 
 ```{r tuning glmnet, results='hide'}
-# Glmnet is a package that fits a generalized linear model via penalized maximum likelihood.Gaussian is the default family in glmnet and glmnet provides various options for users to customise the fit,the 3 option chosen here are : 
+# Glmnet is a package that fits a generalized linear model via penalized maximum likelihood. Gaussian is the default family in glmnet and glmnet provides various options for users to customise the fit,the 3 option chosen here are : 
 # alpha is for the elastic-net mixing parameter α, with range α∈[0,1]. α=1 is the lasso (default) and α=0 is the ridge.
 # Value(s)of the penalty parameter lambda at which predictions are required. Default is the entire sequence used to create the model.
 # eps is the  minimum value of lambda.min.ratio ; factory default= 1.0e-6
@@ -327,7 +327,7 @@ toc()
 
 ```{r tuning kknn, results = 'hide'}
 # for KKNN the main aspects are:
-# - the distance measure which is used to define similarity (respectively dissimilarity) between the pokemon battles. mlr3-kknn supports only the Minowski-distance with different parameters. We will consider distance-parameter 1,2 and 3.
+# - the distance measure which is used to define similarity (respectively dissimilarity) between the Pokemon battles. mlr3-kknn supports the Minowski-distance with different parameters. We will consider distance-parameter 1,2 and 3.
 # - Minowksi-distance with parameter 1 is the Manhattan-distance
 # - Minowksi-distance with parameter 2 is the Euclidean distance
 # - Minowski-distance with parameter 3 is not so commonly used, but could also lead to better results in specific cases
@@ -392,9 +392,8 @@ tune_ps <- ParamSet$new(list(
   ParamDbl$new("classif.xgboost.eta", lower = 0.3, upper = 0.5), # default 0.3
   # eta : learning rate.
   # eta increasing -> training error decreases faster in the training
-  # Step size shrinkage used in update to prevents overfitting. After each boosting step, 
-  # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process      
-  # more conservative.
+  # Step size shrinkage used in update to prevent overfitting. After each boosting step, 
+  # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process more conservative.
   ParamDbl$new("classif.xgboost.gamma", lower = 0, upper = 0), # default 0 gamma = 0 is the best here
   # gamma : Minimum loss reduction required to make a further partition on a leaf node of the tree. 
   # gamma increasing -> training error decreases slower in the training
@@ -409,8 +408,9 @@ tune_ps <- ParamSet$new(list(
   #then the building process will give up further partitioning. In linear regression task, 
   #this simply corresponds to minimum number of instances needed to be in each node. 
   #The larger min_child_weight is, the more conservative the algorithm will be.
-  ParamInt$new("classif.xgboost.nrounds", lower = 30, upper = 100) # Number of Tree : more trees less train error
-  # If other hyperparameters would have been tuned well enough, nrounds needs to be big. if it increases, it could cause longer running time.
+  #Too high values can lead to under-fitting hence, it should be tuned using CV.
+  ParamInt$new("classif.xgboost.nrounds", lower = 30, upper = 100) # Number of Tree : more trees --> less train error
+  # If other hyperparameters would have been tuned well enough, nrounds needs to be big. if it increases, it could cause waisting running time.
 ))
 
 learner_tunedxgboost <- AutoTuner$new(
@@ -457,7 +457,7 @@ tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = te
 
 ```
 
-## 13.Compare Prediction Before & After Tuning Models
+## 13.Compare prediction before & after tuning models
 ```{r compare prediction}
 # tuned glmnet
 glmnet_prediction$score(measures)
@@ -512,12 +512,12 @@ autoplot(bmr,measure = msr("classif.acc")) + theme_bw() + theme(axis.text.x = el
 autoplot(bmr$clone()$filter(task_id = "task_combat"), type = "roc") 
 ```
 
-## 15. Combat 2 Pokemons
+## 15. Pokemon Duell
 ```{r combat pokemon}
 
-# Choose your two pokemons and predict the winner using the Benchmark Best Learner
-# Visulisation : The probability for first pokemon to win via guage graph 
-# Inputs are pokemon id numbers from the pokemon dataset
+# Choose your two Pokemons and predict the winner using the Benchmark Best Learner
+# Visulisation : The probability for first Pokemon to win via gauge graph 
+# Inputs are Pokemon id numbers from the Pokemon dataset
 
 pokemonA <- "123"
 pokemonB <- "321"
@@ -527,7 +527,7 @@ learner_ranger_bench$train(task_combat)
 
 #remember_prob remembers last probability of a battle prediction. This just has to be set before the first function use one time
 remember_prob <- as.double(NA)
-#this function runs the prediction for two fighting pokemon and then visualizes the probability for pokemon A to win. 
+#this function runs the prediction for two fighting Pokemon and then visualizes the probability for Pokemon A to win. 
 who_wins <- function(pokemonA, pokemonB){
   data_for_classification <- data.frame(row.names=1)
   data_for_classification$First_pokemon <- pokemonA
@@ -562,7 +562,7 @@ who_wins <- function(pokemonA, pokemonB){
                   sp_defVSsp_def_diff,
                   HPVSHP_diff)
   
-  #insert final model here. "ranger" is placeholder
+  #insert final model here. 
   prediction <- learner_ranger_bench$predict_newdata(newdata=data_for_classification)
   prob <- prediction$prob[,2] 
   
@@ -596,7 +596,7 @@ who_wins <- function(pokemonA, pokemonB){
 ```
 
 ## 15.1 Now you can play Pokemon Battle with Machine Learning!
-#### Pokemon Battle : Choose two pokemons(from 1 to 800) and You can check the first pokemon's possibility of being a winner
+#### Pokemon Battle : Choose two Pokemons(from 1 to 800) and You can check the first Pokemon's possibility of being a winner
 ```{r}
 #Play1
 who_wins(pokemonA = "284", pokemonB = "324")

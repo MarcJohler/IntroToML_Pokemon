@@ -1,6 +1,6 @@
 ---
 title: "iML_Pokemon"
-author: "Hyeyoung Park, Marc Johler, Bechir Ghannouchi"
+author: "Hyeyoung Park", "Marc Johler", "Bechir Ghannouchi"
 date: "5/13/2020"
 output: pdf_document
 ---

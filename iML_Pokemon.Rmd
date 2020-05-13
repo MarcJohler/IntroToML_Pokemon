@@ -393,7 +393,8 @@ tune_ps <- ParamSet$new(list(
   # eta : learning rate.
   # eta increasing -> training error decreases faster in the training
   # Step size shrinkage used in update to prevents overfitting. After each boosting step, 
-  # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process      # more conservative.
+  # we can directly get the weights of new features, and eta shrinks the feature weights to make the boosting process      
+  # more conservative.
   ParamDbl$new("classif.xgboost.gamma", lower = 0, upper = 0), # default 0 gamma = 0 is the best here
   # gamma : Minimum loss reduction required to make a further partition on a leaf node of the tree. 
   # gamma increasing -> training error decreases slower in the training

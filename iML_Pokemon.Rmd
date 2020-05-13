@@ -530,6 +530,7 @@ pokemonB <- 321
 
 learner_ranger_bench$train(task_combat, row_ids = train_set)
 #remember_prob remembers last probability of a battle prediction. This just has to be set before the first function use one time
+
 remember_prob <- as.double(NA)
 
 #this function runs the prediction for two fighting pokemon and then visualizes the probability for pokemon A to win. 
@@ -558,13 +559,6 @@ percentage_plot <- function(pokemonA,pokemonB){
   data_for_classification$sp_defVSsp_def_diff <- data_for_classification$First_pokemon_sp_def-data_for_classification$Second_pokemon_sp_def
   data_for_classification$speedVSspeed_diff <- data_for_classification$First_pokemon_speed-data_for_classification$Second_pokemon_speed
   data_for_classification$HPVSHP_diff <- data_for_classification$First_pokemon_HP-data_for_classification$Second_pokemon_HP
-  
-  #first Pokemon faster?
-  data_for_classification$First_pokemon_faster <- sign(data_for_classification$speedVSspeed_diff)
-  
-  #add legendary status
-  data_for_classification$First_pokemon_legendary<-sapply(data_for_classification$First_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
-  data_for_classification$Second_pokemon_legendary<-sapply(data_for_classification$Second_pokemon, function(x) pokemon$is_legendary[match(x, pokemon$id)])%>%as.logical()
   
   #select the variables you need for your specific model
   data_for_classification <- data_for_classification %>% dplyr::select(speedVSspeed_diff, attackVSattack_diff, defenseVSdefense_diff,sp_atkVSsp_atk_diff,sp_defVSsp_def_diff,HPVSHP_diff)

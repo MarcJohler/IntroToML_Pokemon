@@ -106,7 +106,7 @@ daten$Second_pokemon_legendary<-sapply(daten$Second_pokemon, function(x) pokemon
 # If the speed of two fighting Pokemons is the same, the beginner will be defined randomly
 # This means positive values should have a positive impact on First_wins and negative values a negative impact. A value of zero however should have no impact since the beginner is defined completely random. 
 # Here you can see that speed difference has the highest influence on our model, but still there are no wins for the First_pokemon in case of zero speed difference.
-table(daten$Firste_pokemon_faster,First_wins)
+table(daten$Firste_pokemon_faster,daten$First_wins)
 # Since this is very unlikely to happen randomly, we assume that there is a data error for those specific observations
 #exclude all of those observations with equal speed of both Pokemon
 daten$First_wins <- daten$First_wins  %>% as.factor()

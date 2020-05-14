@@ -461,27 +461,27 @@ tunedxgboost_prediction = learner_tunedxgboost$predict(task_combat, row_ids = te
 ```{r compare prediction}
 # tuned glmnet
 glmnet_prediction$score(measures)
-tunedglmnet_prediction&score(measures)
+tunedglmnet_prediction$score(measures)
 
 # tuned log_reg
 log_prediction$score(measures)
-tunedlog_prediction&score(measures)
+tunedlog_prediction$score(measures)
 
 # tuned naive bayes
 nb_prediction$score(measures)
-tunednb_prediction&score(measures)
+tunednb_prediction$score(measures)
 
 # tuned KKNN
 kknn_prediction$score(measures)
-tunedkknn_prediction&score(measures)
+tunedkknn_prediction$score(measures)
 
 # tuned ranger (RF)
 RF_prediction$score(measures)
-tunedRF_prediction&score(measures)
+tunedRF_prediction$score(measures)
 
 # tuned xgboost
 xgboost_prediction$score(measures)
-tunedxgboost_prediction&score(measures)
+tunedxgboost_prediction$score(measures)
 ```
 
 ## 14.Benchmark
